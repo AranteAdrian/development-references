@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Pre-commit configuration
+# Hooks run automatically on every `git commit` against staged files only.
+#
+# PREREQUISITES
+#   Python 3.11+  must be installed
+#   pip           must be available
+#
+# FIRST-TIME SETUP (every developer runs this once after cloning)
+#   pip install pre-commit        # install the pre-commit framework
+#   pre-commit install            # register hooks into your local .git folder
+#
+# After setup, hooks trigger automatically on every `git commit` — no extra steps.
+#
+# COMMON COMMANDS
+#   pre-commit run --all-files    # run all hooks against every file in the repo
+#   pre-commit run ruff           # run a specific hook only
+#   pre-commit autoupdate         # bump all hook versions to latest
+#   pre-commit uninstall          # remove hooks from your local .git folder
+#
+# SKIPPING HOOKS (use sparingly — defeats the purpose)
+#   git commit --no-verify -m "message"
+# ─────────────────────────────────────────────────────────────────────────────
+
+default_stages: [pre-commit]  # run on commit, not push
+fail_fast: false               # run all hooks even if one fails — see all issues at once
+
+repos:
+
+  # ─────────────────────────────────────────────
+  # General file checks
+  # Source: https://github.com/pre-commit/pre-commit-hooks
+  # ─────────────────────────────────────────────
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace          # removes trailing spaces at end of lines
+      - id: end-of-file-fixer            # ensures every file ends with a newline
+      - id: check-yaml                   # validates YAML files parse correctly
+      - id: check-json                   # validates JSON files parse correctly
+      - id: check-merge-conflict         # catches leftover <<<<<<< conflict markers
+      - id: check-added-large-files      # blocks files over 500KB from being committed
+        args: ["--maxkb=500"]            # AI projects risk committing embeddings or data files
+      - id: detect-private-key           # blocks private keys and credentials from being committed
+      - id: debug-statements             # catches leftover print() and breakpoint() calls
+
+  # ─────────────────────────────────────────────
+  # Python linting and formatting
+  # Source: https://github.com/astral-sh/ruff-pre-commit
+  # Replaces: flake8, black, isort — one tool for all three
+  # ─────────────────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.0
+    hooks:
+      - id: ruff                         # linting — catches unused imports, undefined vars, style issues
+        args: ["--fix"]                  # auto-fix issues that can be fixed safely
+      - id: ruff-format                  # formatting — enforces consistent code style
+
+  # ─────────────────────────────────────────────
+  # Security scanning
+  # Source: https://github.com/PyCQA/bandit
+  # Especially important for AI backends: catches hardcoded secrets,
+  # unsafe pickle/yaml usage, SQL injection, and weak cryptography
+  # ─────────────────────────────────────────────
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ["-c", "pyproject.toml"]   # reads bandit config from pyproject.toml
+        exclude: ^tests/                 # skip tests — intentional patterns cause false positives
