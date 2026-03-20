@@ -37,16 +37,20 @@ enterprise-ai-backend-template/
 │   │   └── base.py
 │   ├── models/                   # SQLAlchemy ORM models (database tables)
 │   ├── schemas/                  # Pydantic models (API request/response shapes)
+│   ├── repositories/             # Data access layer (between services and DB)
 │   ├── api/                      # HTTP layer
 │   │   └── v1/
 │   │       ├── router.py         # Aggregates all v1 endpoint routers
-│   │       └── dependencies.py   # Shared FastAPI dependencies (auth, pagination)
+│   │       ├── dependencies.py   # Shared FastAPI dependencies (auth, pagination)
+│   │       └── endpoints/        # Per-resource route files (chat.py, documents.py)
 │   ├── services/                 # Business logic layer
 │   ├── agents/                   # LLM agent definitions and graphs
 │   ├── pipelines/                # Multi-step AI workflows (RAG, ingestion)
 │   ├── tools/                    # Functions agents can invoke
 │   ├── prompts/                  # Versioned prompt templates
 │   ├── guardrails/               # Input/output validation and safety
+│   ├── memory/                   # Agent memory and conversation state
+│   ├── retrievers/               # RAG retrieval logic (vector search, reranking)
 │   ├── middlewares/               # Request logging, CORS, tracing, rate limiting
 │   └── workers/                  # Background tasks (Celery, async jobs)
 │
@@ -56,11 +60,16 @@ enterprise-ai-backend-template/
 ├── tests/                        # All test code
 │   ├── conftest.py               # Shared fixtures across all tests
 │   ├── unit/                     # Fast, isolated, no external deps
-│   └── integration/              # Slower, tests real endpoint + DB behavior
+│   ├── integration/              # Slower, tests real endpoint + DB behavior
+│   └── e2e/                      # Full-flow tests across the entire stack
 ├── evals/                        # AI evaluation datasets and harness
+│   ├── datasets/                 # Golden Q&A pairs and test inputs
+│   ├── runners/                  # Scripts that execute evaluations
+│   └── results/                  # Eval output scores and reports
 ├── data/                         # Local data artifacts
 │   ├── raw/                      # Original, unmodified source data
-│   └── processed/                # Cleaned, chunked, ready-to-embed data
+│   ├── processed/                # Cleaned, chunked, ready-to-embed data
+│   └── vectors/                  # Locally embedded vectors for RAG development
 ├── notebooks/                    # Jupyter notebooks for exploration only
 ├── scripts/                      # CLI utilities, one-off migration scripts
 ├── .github/                      # CI/CD — GitHub Actions (if using GitHub)
@@ -287,6 +296,18 @@ These two folders define the shape of your data — how it's stored in the datab
 
 ---
 
+#### `app/repositories/`
+
+**What it is:** The data access layer that sits between services and the database. Each repository class wraps the database queries for one domain entity — abstracting raw SQLAlchemy calls behind a clean interface.
+
+**InsightBot example:** `document_repository.py` contains `get_by_id()`, `list_by_status()`, `save()`, and `delete()` for the `Document` table. `conversation_repository.py` handles fetching and saving conversation history. Services call repositories; repositories are the only layer that knows about SQLAlchemy.
+
+**Why it matters:** Without this layer, services mix business logic with database queries in the same function — making both harder to test and harder to change. With repositories, a service can be tested by passing in a mock repository; the database query logic is tested separately. This is a standard clean architecture pattern and is explicitly demonstrated in production FastAPI templates.
+
+📎 **Reference:** [FastAPI Clean Architecture Example](https://github.com/0xTheProDev/fastapi-clean-example) · [Repository Pattern with FastAPI](https://medium.com/@kacperwlodarczyk/fast-api-repository-pattern-and-service-layer-dad43354f07a)
+
+---
+
 ### Phase 4: HTTP Layer (`app/api/`, `app/middlewares/`)
 
 These folders handle everything between the outside world and your business logic — routing requests, validating auth, logging, and rate limiting.
@@ -302,6 +323,18 @@ These folders handle everything between the outside world and your business logi
 **Why it matters:** API versioning is a non-negotiable for production APIs. When you need to make breaking changes, you create `v2/` alongside `v1/` and migrate clients gradually. Without versioned routing from day one, you're forced to break existing clients or maintain ugly compatibility hacks.
 
 📎 **Reference:** [FastAPI — APIRouter](https://fastapi.tiangolo.com/tutorial/bigger-applications/#apirouter)
+
+---
+
+#### `app/api/v1/endpoints/`
+
+**What it is:** A subfolder containing one file per API resource. Each file defines the routes for that resource and its own `APIRouter` instance, which `router.py` then imports and includes.
+
+**InsightBot example:** `endpoints/chat.py` defines `POST /chat` and `GET /chat/{id}/history`. `endpoints/documents.py` defines `POST /documents/upload` and `GET /documents/{id}/status`. `endpoints/auth.py` defines `POST /auth/login` and `POST /auth/refresh`. Each file is independently readable and independently testable.
+
+**Why it matters:** Without this subfolder, all routes live in `router.py` — which becomes a hundreds-of-lines monolith as soon as the project grows beyond two resources. The FastAPI official documentation on Bigger Applications explicitly shows this per-resource file pattern as the recommended approach for real projects. Adding a new feature means creating one new file in `endpoints/` and one line in `router.py` — nothing else changes.
+
+📎 **Reference:** [FastAPI — Bigger Applications](https://fastapi.tiangolo.com/tutorial/bigger-applications/)
 
 ---
 
@@ -347,9 +380,9 @@ The bridge between your HTTP endpoints and your AI pipelines.
 
 ---
 
-### Phase 6: AI/LLM Layer (`app/agents/`, `app/pipelines/`, `app/tools/`, `app/prompts/`, `app/guardrails/`)
+### Phase 6: AI/LLM Layer (`app/agents/`, `app/pipelines/`, `app/tools/`, `app/prompts/`, `app/guardrails/`, `app/memory/`, `app/retrievers/`)
 
-These five folders are what make this template AI-specific. They do not exist in a standard backend template.
+These seven folders are what make this template AI-specific. They do not exist in a standard backend template.
 
 ---
 
@@ -410,6 +443,30 @@ These five folders are what make this template AI-specific. They do not exist in
 **Why it matters:** This is not optional for enterprise AI. Without output guardrails, InsightBot might leak an employee's salary from an HR document, hallucinate a policy that doesn't exist, or return a response that violates compliance rules. Guardrails are a first-class concern — they deserve their own folder, not buried inside a service.
 
 📎 **Reference:** [OWASP Top 10 for LLM Applications](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
+
+---
+
+#### `app/memory/`
+
+**What it is:** Manages agent memory and conversation state — the mechanism by which an agent knows what was said earlier in a session, retains user preferences across turns, or summarizes long conversations to fit within a context window.
+
+**InsightBot example:** `conversation_memory.py` loads the last N messages from the database and formats them for injection into the agent's context window. `summary_memory.py` compresses old conversation turns into a rolling summary when the history grows too long. `entity_memory.py` tracks key entities mentioned (document names, departments, topics) so the agent can refer back to them without re-reading the full history.
+
+**Why it matters:** Memory is distinct from agent *logic*. An agent decides *what to do*; memory decides *what it knows about the past*. Mixing them inside `agents/` creates files that are both hard to test and hard to swap. LangChain treats memory as a first-class module with its own class hierarchy — `ConversationBufferMemory`, `ConversationSummaryMemory`, `VectorStoreRetrieverMemory` — precisely because it is a separate concern.
+
+📎 **Reference:** [LangChain — Memory Concepts](https://python.langchain.com/docs/concepts/memory) · [LangChain Memory API Reference](https://python.langchain.com/api_reference/langchain/memory.html)
+
+---
+
+#### `app/retrievers/`
+
+**What it is:** The retrieval layer for RAG — responsible for taking a user query, searching the vector store, optionally reranking results, and returning the most relevant document chunks to be injected into the agent's context.
+
+**InsightBot example:** `vector_retriever.py` embeds the user query and runs a similarity search against the vector database. `hybrid_retriever.py` combines dense vector search with BM25 keyword search and merges the results. `reranker.py` takes the top-20 candidates from the vector search and uses a cross-encoder model to reorder them by actual relevance before the top-5 are passed to the agent.
+
+**Why it matters:** Retrieval logic is not a "tool" an agent calls by choice — it is an infrastructure concern that runs before the agent sees any context. Putting it inside `tools/` conflates two different things. Retrieval has its own dependencies (vector store clients, embedding models, reranking models), its own testing strategy (retrieval recall metrics, not agent output quality), and its own optimization lifecycle. LangChain and AWS both define retrievers as a distinct abstraction layer in RAG architectures.
+
+📎 **Reference:** [LangChain — Retrievers](https://python.langchain.com/docs/concepts/retrievers/) · [AWS — RAG Custom Retrievers](https://docs.aws.amazon.com/prescriptive-guidance/latest/retrieval-augmented-generation-options/rag-custom-retrievers.html)
 
 ---
 
@@ -479,19 +536,59 @@ These five folders are what make this template AI-specific. They do not exist in
 
 ---
 
+#### `tests/e2e/`
+
+**What it is:** End-to-end tests that exercise complete user-facing workflows through the entire stack — from HTTP request to database, through the AI pipeline, and back to the HTTP response. Unlike integration tests (which may mock the LLM), e2e tests validate the full system behaves correctly from a user's perspective.
+
+**InsightBot example:** `test_chat_flow.py` sends a real question via the API, lets it flow through the retriever, the agent, and the guardrail layer, and asserts the response contains a valid answer with source citations. `test_document_ingestion.py` uploads a real PDF and asserts that after ingestion, a related question returns chunks from that document.
+
+**Why it matters:** Unit and integration tests can both pass while a real user workflow is broken — because they test components, not the complete journey. E2E tests are the last line of verification before production. They run less frequently (not on every commit, but on every release candidate or nightly), and they are the only tests that can catch issues caused by how all layers interact together end-to-end.
+
+📎 **Reference:** [Twilio — Unit, Integration, and End-to-End Testing: What's the Difference?](https://www.twilio.com/en-us/blog/unit-integration-end-to-end-testing-difference)
+
+---
+
 ### Phase 10: AI Evaluation (`evals/`)
 
 ---
 
 #### `evals/`
 
-**What it is:** Evaluation datasets (golden question-answer pairs) and the harness that runs your agents against them, scoring accuracy, faithfulness, and relevance.
-
-**InsightBot example:** `golden_set.jsonl` contains 50 hand-curated questions with expected answers and source documents. `run_eval.py` feeds each question through the RAG pipeline, compares the agent's answer to the expected answer (using an LLM-as-judge or exact match), and produces a score report. This runs nightly via the Celery scheduler and fails the CI build if accuracy drops below the threshold.
+**What it is:** The evaluation harness for your AI system — datasets to test against, scripts to run them, and a place to store results. This folder is what lets you answer "did this change make the AI better or worse?"
 
 **Why it matters:** This is the folder that separates toy projects from production AI. Without evals, you have no way to know if a prompt change, model upgrade, or retriever tweak made things better or worse. Every production ML guide emphasizes that eval harnesses are non-negotiable — they are to AI projects what unit tests are to traditional software.
 
 📎 **Reference:** [OpenAI Evals Framework](https://github.com/openai/evals) · [LangSmith Evaluation](https://docs.smith.langchain.com/)
+
+---
+
+#### `evals/datasets/`
+
+**What it is:** Golden datasets — hand-curated question-and-answer pairs, edge cases, and adversarial inputs used to benchmark the AI system. These are the ground truth your eval runners compare against.
+
+**InsightBot example:** `hr_questions.jsonl` contains 30 questions about HR policies with expected answers and the source document each answer comes from. `adversarial_inputs.jsonl` contains prompt injection attempts and jailbreak queries that the guardrail layer must reject. `regression_cases.jsonl` contains questions that broke in previous versions — ensuring they stay fixed.
+
+**Why it matters:** Without structured datasets, evals are ad hoc and unrepeatable. OpenAI's evals framework stores all datasets in a `data/` registry directory as JSONL files with consistent schema — input, expected output, and metadata. A structured dataset folder means every team member runs evals against the same ground truth.
+
+---
+
+#### `evals/runners/`
+
+**What it is:** Scripts that load a dataset, feed each item through the AI pipeline, collect outputs, and compute scores. Each runner targets a specific pipeline or evaluation dimension.
+
+**InsightBot example:** `run_rag_eval.py` evaluates retrieval quality — for each question in `datasets/hr_questions.jsonl`, it runs the retriever and checks whether the correct source document appears in the top-5 results. `run_answer_eval.py` feeds the full RAG pipeline and uses an LLM-as-judge to score faithfulness and relevance. `run_guardrail_eval.py` tests every adversarial input and asserts the guardrail correctly rejects each one.
+
+**Why it matters:** Separating runners from datasets means you can run different evaluations over the same data — testing retrieval quality independently from answer quality. Each runner is also independently callable from CI or the Celery scheduler.
+
+---
+
+#### `evals/results/`
+
+**What it is:** The output directory for eval runs — score reports, comparison files between prompt versions, and trend data tracked over time.
+
+**InsightBot example:** `2026-03-20_rag_eval.json` contains per-question scores from the RAG eval run on that date. `prompt_v1_vs_v2_comparison.json` shows side-by-side scores when the research agent prompt was updated. These files are checked into version control so the team can see how AI quality has changed across releases.
+
+**Why it matters:** Without stored results, every eval run disappears after you read the terminal output. Persisted results let you compare current performance against a baseline, detect regressions, and build a quality trend over time — which is the entire point of running evals systematically.
 
 ---
 
@@ -516,6 +613,16 @@ These five folders are what make this template AI-specific. They do not exist in
 **Why it matters:** Cookiecutter Data Science (the most widely adopted ML project template, with 8+ years of production use) structures data into staged directories — raw, interim, processed — so anyone opening the project can follow the data journey. Mixing raw and processed data in one folder leads to confusion about what's been transformed and what hasn't.
 
 📎 **Reference:** [Cookiecutter Data Science — Opinions on Data](https://cookiecutter-data-science.drivendata.org/)
+
+---
+
+#### `data/vectors/`
+
+**What it is:** Locally stored vector embeddings for RAG development and testing. When you are iterating on chunking strategies, embedding models, or retrieval logic, this is where the embedded output lands before it goes to a hosted vector database.
+
+**InsightBot example:** During local development, `ingest_pipeline.py` embeds the processed document chunks and writes them to `data/vectors/hr_policies.npy` (or a local Qdrant/Chroma instance pointing here). The retriever reads from this directory instead of hitting Pinecone — keeping local development fast and free.
+
+**Why it matters:** Without a designated local vector store location, developers either hit the production vector database during development (expensive, risky) or scatter local embedding files across the project with no consistent convention. This folder makes the RAG development loop self-contained and reproducible.
 
 ---
 
@@ -636,20 +743,29 @@ Each template is independently callable.
 | `app/db/` | Database engine and session management | Yes — no data persistence |
 | `app/models/` | Database table definitions (ORM) | Yes — no data structure |
 | `app/schemas/` | API request/response contracts (Pydantic) | Yes — no input validation |
+| `app/repositories/` | Data access layer between services and DB | Risk — business logic and queries entangled |
 | `app/api/v1/` | HTTP routes and dependencies | Yes — no API surface |
+| `app/api/v1/endpoints/` | Per-resource route files | Risk — router grows unmanageable |
 | `app/services/` | Business logic connecting routes to AI | Yes — routes have no logic |
 | `app/agents/` | LLM reasoning units | Yes — no AI capability |
 | `app/pipelines/` | End-to-end AI workflows | Yes — no RAG, no ingestion |
 | `app/tools/` | Functions agents can call | Yes — agents can't act |
 | `app/prompts/` | Versioned prompt templates | Yes — agents have no instructions |
 | `app/guardrails/` | Content safety and validation | Risk — PII leaks, hallucinations |
+| `app/memory/` | Agent memory and conversation state | Risk — stateful agents lose context |
+| `app/retrievers/` | RAG retrieval logic (vector search, reranking) | Risk — retrieval mixed into tools/services |
 | `app/middlewares/` | Logging, tracing, rate limiting | Risk — blind to production issues |
 | `app/workers/` | Background task processing | Risk — slow API, lost work |
 | `alembic/` | Database migrations | Risk — manual schema changes |
 | `tests/unit/` | Fast isolated tests | Risk — regressions ship to prod |
 | `tests/integration/` | Cross-component tests | Risk — integration failures |
-| `evals/` | AI quality measurement | Risk — no idea if AI is degrading |
-| `data/` | Local data artifacts | Convenience — cloud alternative exists |
+| `tests/e2e/` | Full-flow end-to-end tests | Risk — complete user workflows untested |
+| `evals/datasets/` | Golden Q&A pairs and adversarial inputs | Risk — no repeatable eval ground truth |
+| `evals/runners/` | Scripts that execute evaluations | Risk — eval runs are ad hoc and inconsistent |
+| `evals/results/` | Eval output scores over time | Risk — no quality trend or regression detection |
+| `data/raw/` | Original unmodified source data | Convenience — cloud alternative exists |
+| `data/processed/` | Chunked, ready-to-embed data | Convenience — cloud alternative exists |
+| `data/vectors/` | Local embeddings for RAG development | Convenience — avoids hitting prod vector DB |
 | `notebooks/` | Exploration and prototyping | Convenience — not required |
 | `scripts/` | CLI utilities | Convenience — can live elsewhere |
 | `.github/workflows/` | CI/CD automation (GitHub) | Risk — no automated quality gate |

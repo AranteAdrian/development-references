@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find \"C:\\\\Users\\\\aarante\\\\Documents\\\\ai-engineering\\\\development-references\\\\ai-backend-project-structure-template\" -name \"*.py\" -exec wc -l {} +)",
+      "Bash(for file:*)",
+      "Bash(do echo:*)",
+      "Read(//c/Users/aarante/Documents/ai-engineering/development-references/ai-backend-project-structure-template/**)",
+      "Bash(done)",
+      "WebSearch",
+      "Bash(BASE=\"/c/Users/aarante/Documents/ai-engineering/development-references/ai-backend-project-structure-template\")",
+      "Bash(mkdir -p \"$BASE/app/api/v1/endpoints\" \"$BASE/app/repositories\" \"$BASE/app/memory\" \"$BASE/app/retrievers\" \"$BASE/tests/e2e\" \"$BASE/evals/datasets\" \"$BASE/evals/runners\" \"$BASE/evals/results\" \"$BASE/data/vectors\")",
+      "Bash(touch \"$BASE/app/api/v1/endpoints/.gitkeep\" \"$BASE/app/repositories/.gitkeep\" \"$BASE/app/memory/.gitkeep\" \"$BASE/app/retrievers/.gitkeep\" \"$BASE/tests/e2e/.gitkeep\" \"$BASE/evals/datasets/.gitkeep\" \"$BASE/evals/runners/.gitkeep\" \"$BASE/evals/results/.gitkeep\" \"$BASE/data/vectors/.gitkeep\")",
+      "Bash(git:*)"
+    ]
+  }
+}
