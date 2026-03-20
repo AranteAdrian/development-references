@@ -199,7 +199,7 @@ These are the files and folders you set up before writing a single line of busin
 
 **Why it matters:** CI catches quality issues after the code is already in the repo. Pre-commit catches them before the commit even exists — a faster and cleaner feedback loop. It is the local counterpart to your CI pipeline, not a replacement for it. FastAPI's own repository and Tiangolo's full-stack template both ship with this file.
 
-📎 **Reference:** [pre-commit — Documentation](https://pre-commit.com/)
+📎 **Reference:** [pre-commit — Documentation](https://pre-commit.com/) · [Browse all available hooks](https://pre-commit.com/hooks.html) · [pre-commit-hooks (general file checks)](https://github.com/pre-commit/pre-commit-hooks) · [ruff-pre-commit (linting and formatting)](https://github.com/astral-sh/ruff-pre-commit) · [Bandit (security checks)](https://github.com/PyCQA/bandit)
 
 ---
 
