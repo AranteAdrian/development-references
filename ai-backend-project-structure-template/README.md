@@ -94,7 +94,8 @@ enterprise-ai-backend-template/
 ├── .pre-commit-config.yaml       # Automated pre-commit quality checks
 ├── .env.example                  # Template for environment variables
 ├── .gitignore                    # Files excluded from version control
-└── CONTRIBUTING.md               # Guide for adapting and contributing to this template
+├── CONTRIBUTING.md               # Guide for adapting and contributing to this template
+└── CHANGELOG.md                  # Version history — what changed and when
 ```
 
 ---
@@ -689,6 +690,18 @@ These seven folders are what make this template AI-specific. They do not exist i
 
 ---
 
+#### `CHANGELOG.md`
+
+**What it is:** A running log of every notable change to the template across releases — what was added, changed, or removed, and in which version. Follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format with entries organized under `[Unreleased]` (ongoing work) and dated version sections (e.g. `[1.2.0] - 2026-03-20`). Versions follow [Semantic Versioning](https://semver.org/) (MAJOR.MINOR.PATCH).
+
+**InsightBot example:** When the InsightBot team upgrades from template v1.2.0 to v2.0.0, they open `CHANGELOG.md` and immediately see that `app/repositories/` was added in 1.2.0, that the `evals/` folder was restructured in 1.3.0, and that 2.0.0 introduces a breaking change to the pipeline interface. They know exactly what to review in their own codebase without diffing every file.
+
+**Why it matters:** A version number alone tells you *that* something changed. A changelog tells you *what* changed and *why* — which is what every developer actually needs when deciding whether to adopt an update. The README evolves over time; `CHANGELOG.md` preserves the history. Update it per release (when you cut a version tag), not per commit — one entry per release is more useful than noise.
+
+📎 **Reference:** [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · [Semantic Versioning](https://semver.org/)
+
+---
+
 ### CI/CD: Choose Your Platform
 
 This template includes folder structures for **both** GitHub Actions and Azure DevOps Pipelines. Use whichever your organization runs — delete the other. They solve the same problem (automated lint, test, build, deploy on every push/PR) but have different conventions.
@@ -808,6 +821,7 @@ Each template is independently callable.
 | `.dockerignore` | Exclude files from Docker build context | Risk — bloated images, secrets in containers |
 | `.pre-commit-config.yaml` | Automated local quality checks before commit | Convenience — CI is the safety net |
 | `CONTRIBUTING.md` | Guide for adapting and contributing to the template | Risk — adopters guess instead of follow |
+| `CHANGELOG.md` | Version history — what changed and when | Convenience — but expected in any versioned template |
 | `.github/workflows/` | CI/CD automation (GitHub) | Risk — no automated quality gate |
 | `.azdo/templates/` | Reusable deploy recipes (Azure DevOps) | Risk — no automated quality gate |
 | `.azdo/variables/` | Per-environment config (Azure DevOps) | Risk — config scattered in pipeline YAML |
@@ -861,4 +875,4 @@ This template structure was validated against the following production sources:
 
 ---
 
-*Template version: 1.2 | Last validated: March 2026*
+*Template version: 1.2.0 | Last validated: March 2026*
