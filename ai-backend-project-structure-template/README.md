@@ -88,10 +88,13 @@ enterprise-ai-backend-template/
 ├── alembic.ini                   # Alembic migration config
 ├── pyproject.toml                # Project metadata and dependencies
 ├── Dockerfile                    # Container build instructions
+├── .dockerignore                 # Files excluded from Docker build context
 ├── docker-compose.yml            # Local multi-service orchestration
 ├── Makefile                      # Developer command shortcuts
+├── .pre-commit-config.yaml       # Automated pre-commit quality checks
 ├── .env.example                  # Template for environment variables
-└── .gitignore                    # Files excluded from version control
+├── .gitignore                    # Files excluded from version control
+└── CONTRIBUTING.md               # Guide for adapting and contributing to this template
 ```
 
 ---
@@ -173,6 +176,30 @@ These are the files and folders you set up before writing a single line of busin
 **Why it matters:** AI backends almost always depend on multiple services (database, vector store, cache, message broker). Docker Compose lets every developer spin up an identical local environment in one command. No more "install Postgres on your machine" documentation.
 
 📎 **Reference:** [Docker Compose Documentation](https://docs.docker.com/compose/)
+
+---
+
+#### `.dockerignore`
+
+**What it is:** Tells Docker which files and folders to exclude when building the image. Works the same way as `.gitignore` but specifically controls what gets copied into the Docker build context.
+
+**InsightBot example:** Without this file, building the InsightBot image copies everything — the `.git/` folder, all raw PDFs in `data/raw/`, notebooks, the virtual environment, and local `.env` files — into the image. With `.dockerignore`, only the application code and dependencies are included, keeping the image lean and ensuring no local secrets or data files accidentally end up in a container that gets pushed to a registry.
+
+**Why it matters:** A missing `.dockerignore` is one of the most common Docker mistakes in AI projects specifically — because AI projects tend to have large data folders that have no business being in a production image. It also prevents cache invalidation: if Docker sees the `.git/` folder changed (which it always does on every commit), it invalidates the entire build cache even when no application code changed.
+
+📎 **Reference:** [Docker — .dockerignore File](https://docs.docker.com/build/concepts/context/#dockerignore-files)
+
+---
+
+#### `.pre-commit-config.yaml`
+
+**What it is:** Configuration for pre-commit hooks — automated checks that run on your local machine every time you run `git commit`, before the commit is saved.
+
+**InsightBot example:** When an InsightBot developer runs `git commit`, pre-commit automatically runs `ruff check` for linting and `ruff format` for formatting. If either fails, the commit is blocked and the developer sees the errors immediately in their terminal — no push, no CI run, no waiting. After fixing, they commit again and it goes through.
+
+**Why it matters:** CI catches quality issues after the code is already in the repo. Pre-commit catches them before the commit even exists — a faster and cleaner feedback loop. It is the local counterpart to your CI pipeline, not a replacement for it. FastAPI's own repository and Tiangolo's full-stack template both ship with this file.
+
+📎 **Reference:** [pre-commit — Documentation](https://pre-commit.com/)
 
 ---
 
@@ -652,6 +679,16 @@ These seven folders are what make this template AI-specific. They do not exist i
 
 ---
 
+#### `CONTRIBUTING.md`
+
+**What it is:** A guide for anyone who clones this template — explaining how to adapt it for a real project, what to keep, what to remove, and how to propose improvements back to the template itself.
+
+**InsightBot example:** A new developer clones this template to start InsightBot. The README explains every folder's purpose. `CONTRIBUTING.md` answers the next set of questions: which folders are optional and safe to delete (e.g. `.azdo/` if using GitHub), what to rename first, how to run the full local setup, and how to submit a fix or improvement back to the template if they find a gap.
+
+**Why it matters:** A template without contribution guidance forces every adopter to make the same guesses independently. Since this template is designed to be shared and reused across projects and teams, `CONTRIBUTING.md` is the document that makes that handoff smooth — turning a folder structure into something a team can confidently pick up and run with from day one.
+
+---
+
 ### CI/CD: Choose Your Platform
 
 This template includes folder structures for **both** GitHub Actions and Azure DevOps Pipelines. Use whichever your organization runs — delete the other. They solve the same problem (automated lint, test, build, deploy on every push/PR) but have different conventions.
@@ -768,6 +805,9 @@ Each template is independently callable.
 | `data/vectors/` | Local embeddings for RAG development | Convenience — avoids hitting prod vector DB |
 | `notebooks/` | Exploration and prototyping | Convenience — not required |
 | `scripts/` | CLI utilities | Convenience — can live elsewhere |
+| `.dockerignore` | Exclude files from Docker build context | Risk — bloated images, secrets in containers |
+| `.pre-commit-config.yaml` | Automated local quality checks before commit | Convenience — CI is the safety net |
+| `CONTRIBUTING.md` | Guide for adapting and contributing to the template | Risk — adopters guess instead of follow |
 | `.github/workflows/` | CI/CD automation (GitHub) | Risk — no automated quality gate |
 | `.azdo/templates/` | Reusable deploy recipes (Azure DevOps) | Risk — no automated quality gate |
 | `.azdo/variables/` | Per-environment config (Azure DevOps) | Risk — config scattered in pipeline YAML |
