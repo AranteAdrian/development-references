@@ -50,7 +50,13 @@ enterprise-ai-backend-template/
 │   ├── prompts/                  # Versioned prompt templates
 │   ├── guardrails/               # Input/output validation and safety
 │   ├── memory/                   # Agent memory and conversation state
+│   │   ├── conversation_memory.py
+│   │   ├── session_manager.py
+│   │   └── semantic_cache.py
 │   ├── retrievers/               # RAG retrieval logic (vector search, reranking)
+│   │   ├── query_preprocessor.py
+│   │   ├── retriever.py
+│   │   └── reranker.py
 │   ├── middlewares/               # Request logging, CORS, tracing, rate limiting
 │   └── workers/                  # Background tasks (Celery, async jobs)
 │
@@ -476,25 +482,77 @@ These seven folders are what make this template AI-specific. They do not exist i
 
 #### `app/memory/`
 
-**What it is:** Manages agent memory and conversation state — the mechanism by which an agent knows what was said earlier in a session, retains user preferences across turns, or summarizes long conversations to fit within a context window.
+Memory is distinct from agent *logic*. An agent decides *what to do*; memory decides *what it knows about the past*. Mixing them inside `agents/` creates files that are both hard to test and hard to swap. LangChain treats memory as a first-class module with its own class hierarchy — `ConversationBufferMemory`, `ConversationSummaryMemory`, `VectorStoreRetrieverMemory` — precisely because it is a separate concern. This folder contains three files, each handling a distinct responsibility.
 
-**InsightBot example:** `conversation_memory.py` loads the last N messages from the database and formats them for injection into the agent's context window. `summary_memory.py` compresses old conversation turns into a rolling summary when the history grows too long. `entity_memory.py` tracks key entities mentioned (document names, departments, topics) so the agent can refer back to them without re-reading the full history.
+---
 
-**Why it matters:** Memory is distinct from agent *logic*. An agent decides *what to do*; memory decides *what it knows about the past*. Mixing them inside `agents/` creates files that are both hard to test and hard to swap. LangChain treats memory as a first-class module with its own class hierarchy — `ConversationBufferMemory`, `ConversationSummaryMemory`, `VectorStoreRetrieverMemory` — precisely because it is a separate concern.
+#### `app/memory/conversation_memory.py`
+
+**What it is:** The core memory module — stores and retrieves raw message history per session, compresses old turns into rolling summaries when the history grows too long, and tracks key entities (document names, departments, topics) mentioned across turns.
+
+**InsightBot example:** An employee asks five questions about London office onboarding. By Turn 3 ("And the health insurance enrollment?"), the word "And" only makes sense if the agent knows this is a continuation of the onboarding thread. `conversation_memory.py` loads the last N messages and injects them into the agent's context window. On Turn 4 the employee says "Actually, I'm also going to be working from the Paris office two days a week" — this updates a previous entity. The memory module tracks that the context shifted from London-only to London+Paris, so Turn 5's summary request correctly includes onboarding requirements for both offices. When a conversation reaches 30+ turns and exceeds the context window, the summary logic compresses older turns into a rolling summary so the agent retains the key facts without exceeding token limits.
+
+**Why it matters:** Without conversation memory, every turn is a standalone question. "What about IT equipment?" gets the response "IT equipment for what? Where? Who?" instead of a London-office-specific answer. Without summarization, long conversations silently drop older messages from the context window and the agent forgets critical details. Without entity tracking, a context update in Turn 4 doesn't propagate to the agent's understanding of Turns 1-3.
 
 📎 **Reference:** [LangChain — Memory Concepts](https://python.langchain.com/docs/concepts/memory) · [LangChain Memory API Reference](https://python.langchain.com/api_reference/langchain/memory.html)
 
 ---
 
+#### `app/memory/session_manager.py`
+
+**What it is:** Creates new conversation sessions, resumes existing ones when a user returns, and expires stale sessions after a configured timeout. This is the module that connects a returning user to their previous context.
+
+**InsightBot example:** An employee opens InsightBot at 10 AM, asks about expense reports, gets a detailed answer, and closes the browser. At 2 PM they reopen it and say "Can you also tell me about the approval workflow for those?" Without session management, the system creates a new session — "those" has no referent and the agent asks "Approval workflow for what?" With `session_manager.py`, the system checks: does this user have an active session from today? It finds the 10 AM session (still within the 4-hour timeout window), loads it via `conversation_memory.py`, and the agent knows "those" means expense reports. If the employee returns the next morning instead, the session has expired — a clean start, which is the correct behavior.
+
+**Why it matters:** Session management is the bridge between memory and the real world. Without it, memory exists but is never reconnected to the user. This is especially critical in enterprise environments where users interact with InsightBot in bursts throughout the day — not in one continuous sitting.
+
+---
+
+#### `app/memory/semantic_cache.py`
+
+**What it is:** Embeds incoming queries, compares them against cached query-response pairs, and serves cached answers when a new query is semantically similar to a previously answered one — without running the full retrieval and generation pipeline.
+
+**InsightBot example:** On Monday at 9 AM, Employee A asks "How many vacation days do I get per year?" The full pipeline runs: retriever searches, reranker filters, agent generates, guardrails validate — cost ~$0.03, latency ~4 seconds. The semantic cache stores the query embedding alongside the response with a 24-hour TTL. At 9:15 AM, Employee B asks "What's the annual vacation allowance?" The cache embeds this query, compares it to stored embeddings, and finds a 0.94 cosine similarity (above the 0.90 threshold). It returns the cached response directly — cost ~$0.001 (just the embedding), latency ~200ms. At 9:30 AM, Employee C asks "How many vacation days do managers get?" The similarity score is 0.78 (below threshold) — "managers" changes the meaning, so the full pipeline runs and this becomes a new cache entry.
+
+**Why it matters:** Without semantic caching, InsightBot answers the same PTO question 200 times a week with 200 full pipeline runs — 200 retriever calls, 200 LLM calls, 200x the cost. Common enterprise questions (PTO policy, expense limits, office hours) are asked repeatedly with minor phrasing variations. Semantic caching turns repeated questions from a linear cost into a near-constant one. It also dramatically reduces latency for the majority of common questions — 200ms vs 4 seconds is the difference between a tool employees use and one they abandon.
+
+---
+
 #### `app/retrievers/`
 
-**What it is:** The retrieval layer for RAG — responsible for taking a user query, searching the vector store, optionally reranking results, and returning the most relevant document chunks to be injected into the agent's context.
+Retrieval logic is not a "tool" an agent calls by choice — it is an infrastructure concern that runs before the agent sees any context. Putting it inside `tools/` conflates two different things. Retrieval has its own dependencies (vector store clients, embedding models, reranking models), its own testing strategy (retrieval recall metrics, not agent output quality), and its own optimization lifecycle. LangChain and AWS both define retrievers as a distinct abstraction layer in RAG architectures. This folder contains three files, each handling a distinct stage of the retrieval pipeline.
 
-**InsightBot example:** `vector_retriever.py` embeds the user query and runs a similarity search against the vector database. `hybrid_retriever.py` combines dense vector search with BM25 keyword search and merges the results. `reranker.py` takes the top-20 candidates from the vector search and uses a cross-encoder model to reorder them by actual relevance before the top-5 are passed to the agent.
+---
 
-**Why it matters:** Retrieval logic is not a "tool" an agent calls by choice — it is an infrastructure concern that runs before the agent sees any context. Putting it inside `tools/` conflates two different things. Retrieval has its own dependencies (vector store clients, embedding models, reranking models), its own testing strategy (retrieval recall metrics, not agent output quality), and its own optimization lifecycle. LangChain and AWS both define retrievers as a distinct abstraction layer in RAG architectures.
+#### `app/retrievers/query_preprocessor.py`
+
+**What it is:** Transforms raw user queries into search-optimized queries before they hit the vector store. Handles query rewriting (clarifying vague phrasing), temporal resolution (converting relative dates to absolute), query decomposition (splitting complex questions into sub-queries), and term expansion (expanding abbreviations for better recall).
+
+**InsightBot example:** An employee asks "What changed in the travel reimbursement policy compared to last year?" This is a terrible vector search query — "last year" has no meaning to an embedding model, and the question is actually two lookups (current policy + previous policy). `query_preprocessor.py` resolves "last year" to "2025", decomposes the question into two sub-queries ("travel reimbursement policy 2026" and "travel reimbursement policy 2025"), and expands abbreviations so "PTO" also matches "paid time off." The retriever now runs two focused searches instead of one vague one.
+
+**Why it matters:** Without query preprocessing, the retriever does its best with what it receives — and vague queries return vague results. "What changed compared to last year?" returns chunks that contain the word "changed" but have nothing to do with the travel policy. The agent then hallucinates an answer from irrelevant context, and the user gets a confidently wrong response. Query preprocessing is the difference between a retriever that finds what the user meant and one that finds what the user literally typed.
 
 📎 **Reference:** [LangChain — Retrievers](https://python.langchain.com/docs/concepts/retrievers/) · [AWS — RAG Custom Retrievers](https://docs.aws.amazon.com/prescriptive-guidance/latest/retrieval-augmented-generation-options/rag-custom-retrievers.html)
+
+---
+
+#### `app/retrievers/retriever.py`
+
+**What it is:** The core search module — embeds the preprocessed query, runs vector similarity search against the vector store, and optionally combines it with BM25 keyword search (hybrid retrieval) using reciprocal rank fusion to merge result sets. All search strategies live in this one file until complexity justifies splitting them.
+
+**InsightBot example:** For the preprocessed query "travel reimbursement policy 2026", the retriever embeds it and runs a dense similarity search against `data/vectors/` — returning the top 20 chunks ranked by cosine similarity. For hybrid mode, it simultaneously runs a BM25 keyword search for the exact phrase "travel reimbursement" — catching chunks that use the exact policy name even if the embedding similarity is lower. Reciprocal rank fusion merges both result sets: a chunk that ranks #3 in dense search and #5 in keyword search gets a higher combined score than a chunk that ranks #1 in only one.
+
+**Why it matters:** Pure vector search misses exact matches — if the policy document says "Travel Reimbursement Policy" as a title, a dense embedding might rank a chunk about "expense guidelines" higher because it's semantically similar. Pure keyword search misses paraphrased questions — "Can the company pay me back for my flight?" won't match "travel reimbursement." Hybrid retrieval covers both failure modes. Keeping all search strategies in one file makes the tradeoff visible: you can see the dense path, the sparse path, and the merge logic in one place.
+
+---
+
+#### `app/retrievers/reranker.py`
+
+**What it is:** Takes the merged search results (typically top 20-30 chunks from the retriever), scores each one against the original query using a cross-encoder model, applies source filtering (document status, access control, document type), and returns the final top-N chunks to the agent.
+
+**InsightBot example:** The retriever returned 30 chunks for "What's the maximum amount I can expense for a team dinner?" Among them: chunks about team building budget allocations (semantically similar but wrong), individual meal expense limits (close but different — individual vs team), and the actual team dinner policy (correct). All three have high embedding similarity — the retriever can't tell them apart. The cross-encoder in `reranker.py` reads each chunk against the full query and correctly scores the team dinner policy highest. Source filtering then removes chunks from a Slack export (noisy), a draft document that was never approved (dangerous), and documents outside the employee's department — ensuring only approved, authorized content reaches the agent.
+
+**Why it matters:** Without reranking, the agent receives 5 chunks that are *similar* to the query but not necessarily *relevant*. In the expense example, the agent might average the wrong information and confidently answer "$500 per person" when the actual policy says "$75 per person, $500 per table." Without source filtering, the agent might cite a draft policy that was never approved — a compliance incident in an enterprise setting. The reranker is the precision layer that turns "roughly right" retrieval into "actually correct" retrieval.
 
 ---
 
@@ -802,8 +860,8 @@ Each template is independently callable.
 | `app/tools/` | Functions agents can call | Yes — agents can't act |
 | `app/prompts/` | Versioned prompt templates | Yes — agents have no instructions |
 | `app/guardrails/` | Content safety and validation | Risk — PII leaks, hallucinations |
-| `app/memory/` | Agent memory and conversation state | Risk — stateful agents lose context |
-| `app/retrievers/` | RAG retrieval logic (vector search, reranking) | Risk — retrieval mixed into tools/services |
+| `app/memory/` | Conversation history, session management, semantic caching | Risk — stateful agents lose context, no session continuity |
+| `app/retrievers/` | Query preprocessing, vector/hybrid search, reranking, source filtering | Risk — vague queries return irrelevant chunks, no precision layer |
 | `app/middlewares/` | Logging, tracing, rate limiting | Risk — blind to production issues |
 | `app/workers/` | Background task processing | Risk — slow API, lost work |
 | `alembic/` | Database migrations | Risk — manual schema changes |
