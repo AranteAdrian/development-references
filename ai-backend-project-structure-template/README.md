@@ -28,13 +28,13 @@ enterprise-ai-backend-template/
 ├── app/                          # Application package (all source code)
 │   ├── main.py                   # FastAPI app factory and startup
 │   ├── core/                     # App-wide config, security, constants
-│   │   ├── config.py
-│   │   ├── security.py
-│   │   ├── exceptions.py
-│   │   └── constants.py
+│   │   ├── config.py             # Settings loaded from environment variables
+│   │   ├── security.py           # Auth utilities (JWT, password hashing)
+│   │   ├── exceptions.py         # Custom exception classes
+│   │   └── constants.py          # Fixed values (chunk size, token limits)
 │   ├── db/                       # Database engine, session, base model
-│   │   ├── session.py
-│   │   └── base.py
+│   │   ├── session.py            # Async engine and session factory
+│   │   └── base.py               # SQLAlchemy declarative base class
 │   ├── models/                   # SQLAlchemy ORM models (database tables)
 │   ├── schemas/                  # Pydantic models (API request/response shapes)
 │   ├── repositories/             # Data access layer (between services and DB)
@@ -50,13 +50,13 @@ enterprise-ai-backend-template/
 │   ├── prompts/                  # Versioned prompt templates
 │   ├── guardrails/               # Input/output validation and safety
 │   ├── memory/                   # Agent memory and conversation state
-│   │   ├── conversation_memory.py
-│   │   ├── session_manager.py
-│   │   └── semantic_cache.py
+│   │   ├── conversation_memory.py  # Message history, summaries, entity tracking
+│   │   ├── session_manager.py      # Create, resume, expire sessions
+│   │   └── semantic_cache.py       # Cache responses for similar queries
 │   ├── retrievers/               # RAG retrieval logic (vector search, reranking)
-│   │   ├── query_preprocessor.py
-│   │   ├── retriever.py
-│   │   └── reranker.py
+│   │   ├── query_preprocessor.py   # Rewrite, decompose, expand queries
+│   │   ├── retriever.py            # Vector search, keyword search, hybrid merge
+│   │   └── reranker.py             # Cross-encoder reranking + source filtering
 │   ├── middlewares/               # Request logging, CORS, tracing, rate limiting
 │   └── workers/                  # Background tasks (Celery, async jobs)
 │
