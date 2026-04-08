@@ -326,6 +326,8 @@
 **When:** Before development, reviewed periodically
 **Template:** `templates/02-design/SAD.md`
 
+> **Naming note:** Some organizations call this document an "SDD" (Solution Design Document) or "TAD" (Technical Architecture Document). In this guide, "SAD" refers to the architecture-level blueprint (this entry), while "SDD" (3.1) refers to the developer-facing implementation spec. If your organization uses different terminology, map accordingly.
+
 **References:**
 - TOGAF (The Open Group Architecture Framework) — [opengroup.org/togaf](https://www.opengroup.org/togaf)
 - Arc42 — lean architecture documentation template — [arc42.org](https://arc42.org)
@@ -433,6 +435,8 @@
 
 ### 2.8 ADR — Architecture Decision Record
 
+> **Cross-cutting note:** ADRs are listed under Phase 2 because architecture decisions begin during design, but they are created throughout the entire lifecycle — during pre-design spikes, development trade-offs, operational changes, and technology migrations. Treat ADRs as a living, cross-cutting practice, not a one-time design artifact.
+
 **Purpose:** Captures a single architecture decision — the context, options considered, decision made, and consequences. Creates an immutable decision log over time.
 
 **Key Components:**
@@ -446,13 +450,40 @@
 
 **Owner:** Architect or Tech Lead
 **Audience:** Engineering team, future developers
-**When:** Whenever a significant technical decision is made
+**When:** Whenever a significant technical decision is made — from pre-design through operations
 **Template:** `templates/02-design/ADR.md`
 
 **References:**
 - Michael Nygard's ADR format — [cognitect.com/blog/2011/11/15/documenting-architecture-decisions](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions)
 - adr-tools (CLI for managing ADRs) — [github.com/npryce/adr-tools](https://github.com/npryce/adr-tools)
 - MADR (Markdown ADR) format — [adr.github.io/madr](https://adr.github.io/madr/)
+
+---
+
+### 2.9 Threat Model
+
+**Purpose:** Systematically identifies security threats, attack surfaces, and trust boundaries during design — before code is written. Distinct from pen testing (4.6), which evaluates the built system; threat modeling evaluates design decisions.
+
+**Key Components:**
+- System decomposition (components, data flows, trust boundaries)
+- Threat identification using STRIDE (Spoofing, Tampering, Repudiation, Information Disclosure, Denial of Service, Elevation of Privilege)
+- Attack surface mapping
+- Trust boundary diagrams
+- Threat severity rating (DREAD or risk matrix)
+- Mitigations per threat (design controls, not code fixes)
+- Residual risk acceptance
+- Review cadence and triggers for re-assessment
+
+**Owner:** Security Lead or Architect
+**Audience:** Architects, developers, security team, compliance
+**When:** During design phase, revisited when architecture changes significantly
+**Template:** `templates/02-design/THREAT_MODEL.md`
+
+**References:**
+- Adam Shostack, "Threat Modeling: Designing for Security" (Wiley) — the definitive book
+- OWASP Threat Modeling — [owasp.org/www-community/Threat_Modeling](https://owasp.org/www-community/Threat_Modeling)
+- Microsoft STRIDE model — [microsoft.com/en-us/securityengineering/sdl/threatmodeling](https://www.microsoft.com/en-us/securityengineering/sdl/threatmodeling)
+- NIST SP 800-154 — Guide to Data-Centric System Threat Modeling
 
 ---
 
@@ -481,6 +512,8 @@
 **Audience:** Developers, code reviewers
 **When:** Before implementing a complex feature
 **Template:** `templates/03-development/SDD.md`
+
+> **Naming note:** "SDD" is used inconsistently across the industry. Some organizations use "SDD" to mean the architecture-level document covered by SAD (2.3) in this guide. Here, SDD refers specifically to the developer-facing implementation spec for a feature or module — closer to a Google Design Doc than a TOGAF architecture artifact.
 
 **References:**
 - IEEE 1016-2009 — Software Design Descriptions — [ieee.org](https://standards.ieee.org/standard/1016-2009.html)
@@ -782,6 +815,8 @@
 
 ### 4.7 RTM — Requirements Traceability Matrix
 
+> **Cross-cutting note:** The RTM is listed under Phase 4 because it is most actively used during testing, but it is first created during Phase 1 (Requirements) and populated progressively through design and development. By testing time, the RTM should already have requirement-to-design and requirement-to-code mappings — testing adds the final test-case and defect columns.
+
 **Purpose:** Maps every requirement to its corresponding design element, code, test case, and defect. Ensures nothing is missed and provides audit trail.
 
 **Key Components:**
@@ -793,7 +828,7 @@
 
 **Owner:** QA Lead or Business Analyst
 **Audience:** QA, PM, auditors
-**When:** Maintained throughout the project
+**When:** Created during requirements (Phase 1), populated through design and development, completed during testing
 **Template:** `templates/04-testing/RTM.md`
 
 **References:**
@@ -1133,7 +1168,7 @@
 
 ### 7.1 KT — Knowledge Transfer / Handover Document
 
-**Purpose:** Comprehensive handover document for transitioning a system, project, or role to another person or team. What you built for Cricket AI.
+**Purpose:** Comprehensive handover document for transitioning a system, project, or role to another person or team.
 
 **Key Components:**
 - System overview and architecture
@@ -1152,7 +1187,7 @@
 
 **References:**
 - No formal standard — this is typically organization-specific
-- Your Cricket AI handover is a strong reference implementation
+- GitLab's handbook transition process — [handbook.gitlab.com](https://handbook.gitlab.com)
 
 ---
 
@@ -1352,61 +1387,93 @@
 
 ---
 
+### 7.10 Technical Debt Log
+
+**Purpose:** Tracks known technical debt — shortcuts, deferred refactors, outdated dependencies, and design compromises — along with their impact, interest cost, and pay-down plan.
+
+**Key Components:**
+- Debt ID and description
+- Category (code quality, architecture, infrastructure, testing, documentation)
+- Origin (when and why the debt was introduced)
+- Impact assessment (what breaks or degrades if left unaddressed)
+- Interest cost (ongoing cost of carrying this debt — slower builds, flaky tests, increased incident risk)
+- Effort estimate to resolve
+- Priority (pay now / pay soon / accept for now)
+- Owner
+- Pay-down plan (target sprint or release)
+- Status (open / in progress / resolved / accepted)
+
+**Owner:** Tech Lead or Engineering Manager
+**Audience:** Engineering team, PM, leadership
+**When:** Created when debt is identified, reviewed each sprint or quarterly
+**Template:** `templates/07-cross-cutting/TECHNICAL_DEBT_LOG.md`
+
+**References:**
+- Martin Fowler, "Technical Debt Quadrant" — [martinfowler.com/bliki/TechnicalDebtQuadrant.html](https://martinfowler.com/bliki/TechnicalDebtQuadrant.html)
+- Ward Cunningham's original debt metaphor — [wiki.c2.com/?WardExplainsDebtMetaphor](http://wiki.c2.com/?WardExplainsDebtMetaphor)
+- "Managing Technical Debt" by Philippe Kruchten, Robert Nord, Ipek Ozkaya (SEI/CMU)
+
+---
+
 ## Quick Reference: Document Cheat Sheet
 
-| # | Document | Phase | Owner | One-Liner |
-|---|----------|-------|-------|-----------|
-| 1.1 | BRD | Discovery | BA | Why are we building this? |
-| 1.2 | PRD | Discovery | PM | What should the product do? |
-| 1.3 | FRD | Discovery | BA | What exactly must the system do? |
-| 1.4 | NFR | Discovery | Architect | How well must it perform? |
-| 1.5 | Project Charter | Discovery | PM | Authorization to start |
-| 1.6 | SOW | Discovery | PM | What work will be done for payment |
-| 1.7 | RFP/RFQ/RFI | Discovery | Procurement | Solicit vendor proposals |
-| 1.8 | Stakeholder Analysis | Discovery | PM | Who cares and how much |
-| 1.9 | Feasibility Study | Discovery | BA | Can we and should we? |
-| 2.1 | HLD | Design | Architect | Big-picture architecture |
-| 2.2 | LLD | Design | Tech Lead | Implementation-level detail |
-| 2.3 | SAD | Design | Architect | Comprehensive tech blueprint |
-| 2.4 | ERD | Design | DB Designer | Data model and relationships |
-| 2.5 | API Spec | Design | Backend Lead | API contract |
-| 2.6 | DFD | Design | Analyst | How data flows through the system |
-| 2.7 | Wireframes | Design | UX Designer | UI layout and interactions |
-| 2.8 | ADR | Design | Architect | Why we chose X over Y |
-| 3.1 | SDD | Development | Developer | How to implement this feature |
-| 3.2 | Coding Standards | Development | Tech Lead | How we write code here |
-| 3.3 | README | Development | Developer | How to set up and run the project |
-| 3.4 | DB Schema Doc | Development | Backend Dev | Database structure and migrations |
-| 3.5 | Branching Strategy | Development | Tech Lead | How we use Git |
-| 3.6 | Config Management | Development | DevOps | All settings across environments |
-| 4.1 | Test Plan | Testing | QA Lead | Master plan for all testing |
-| 4.2 | Test Cases | Testing | QA Engineer | Individual test scenarios |
-| 4.3 | UAT | Testing | BA / PO | Business user validation |
-| 4.4 | Bug Report | Testing | QA Engineer | Standardized defect tracking |
-| 4.5 | Performance Report | Testing | Perf Engineer | Load and stress test results |
-| 4.6 | Security Assessment | Testing | Security Eng | Vulnerability findings |
-| 4.7 | RTM | Testing | QA Lead | Requirement-to-test mapping |
-| 5.1 | Deployment Plan | Deployment | DevOps | Step-by-step deploy instructions |
-| 5.2 | Release Notes | Deployment | PM | What changed in this release |
-| 5.3 | Rollback Plan | Deployment | DevOps | How to revert if things break |
-| 5.4 | CI/CD Pipeline Doc | Deployment | DevOps | Pipeline stages and config |
-| 5.5 | Change Request | Deployment | PM | Formal change approval |
-| 5.6 | Go-Live Checklist | Deployment | Release Mgr | Pre-launch verification |
-| 6.1 | SOP | Operations | Ops Lead | Routine operational procedures |
-| 6.2 | Runbook | Operations | SRE | Response to specific scenarios |
-| 6.3 | Incident Response | Operations | SRE Lead | How we handle outages |
-| 6.4 | SLA/SLO | Operations | SRE / PM | Reliability targets and promises |
-| 6.5 | Monitoring Config | Operations | DevOps | What we watch and alert on |
-| 6.6 | PIR / Post-Mortem | Operations | Eng Manager | Blameless incident analysis |
-| 7.1 | KT Handover | Cross-cutting | Outgoing team | System/role transition |
-| 7.2 | Onboarding Guide | Cross-cutting | Eng Manager | New hire ramp-up |
-| 7.3 | Risk Register | Cross-cutting | PM | Tracked risks and mitigations |
-| 7.4 | RACI Matrix | Cross-cutting | PM | Who does what |
-| 7.5 | Meeting Minutes | Cross-cutting | Note-taker | Decisions and action items |
-| 7.6 | Lessons Learned | Cross-cutting | Scrum Master | What to improve next time |
-| 7.7 | Vendor Assessment | Cross-cutting | Tech Lead | Tool/vendor comparison |
-| 7.8 | Compliance Doc | Cross-cutting | Security Lead | Regulatory evidence |
-| 7.9 | User Manual | Cross-cutting | Tech Writer | End-user guide |
+**Project type legend:** M = MVP/Startup, E = Enterprise, R = Regulated/Compliance-heavy. Dots indicate the document is recommended for that project type.
+
+| # | Document | Phase | Owner | One-Liner | M | E | R |
+|---|----------|-------|-------|-----------|---|---|---|
+| 1.1 | BRD | Discovery | BA | Why are we building this? | | * | * |
+| 1.2 | PRD | Discovery | PM | What should the product do? | * | * | * |
+| 1.3 | FRD | Discovery | BA | What exactly must the system do? | | * | * |
+| 1.4 | NFR | Discovery | Architect | How well must it perform? | | * | * |
+| 1.5 | Project Charter | Discovery | PM | Authorization to start | | * | * |
+| 1.6 | SOW | Discovery | PM | What work will be done for payment | | * | * |
+| 1.7 | RFP/RFQ/RFI | Discovery | Procurement | Solicit vendor proposals | | * | * |
+| 1.8 | Stakeholder Analysis | Discovery | PM | Who cares and how much | | * | * |
+| 1.9 | Feasibility Study | Discovery | BA | Can we and should we? | | * | * |
+| 2.1 | HLD | Design | Architect | Big-picture architecture | * | * | * |
+| 2.2 | LLD | Design | Tech Lead | Implementation-level detail | | * | * |
+| 2.3 | SAD | Design | Architect | Comprehensive tech blueprint | | * | * |
+| 2.4 | ERD | Design | DB Designer | Data model and relationships | * | * | * |
+| 2.5 | API Spec | Design | Backend Lead | API contract | * | * | * |
+| 2.6 | DFD | Design | Analyst | How data flows through the system | | * | * |
+| 2.7 | Wireframes | Design | UX Designer | UI layout and interactions | * | * | * |
+| 2.8 | ADR | Design+ | Architect | Why we chose X over Y (cross-cutting) | * | * | * |
+| 2.9 | Threat Model | Design | Security Lead | STRIDE analysis and attack surfaces | | * | * |
+| 3.1 | SDD | Development | Developer | How to implement this feature | | * | * |
+| 3.2 | Coding Standards | Development | Tech Lead | How we write code here | * | * | * |
+| 3.3 | README | Development | Developer | How to set up and run the project | * | * | * |
+| 3.4 | DB Schema Doc | Development | Backend Dev | Database structure and migrations | * | * | * |
+| 3.5 | Branching Strategy | Development | Tech Lead | How we use Git | * | * | * |
+| 3.6 | Config Management | Development | DevOps | All settings across environments | | * | * |
+| 4.1 | Test Plan | Testing | QA Lead | Master plan for all testing | | * | * |
+| 4.2 | Test Cases | Testing | QA Engineer | Individual test scenarios | * | * | * |
+| 4.3 | UAT | Testing | BA / PO | Business user validation | | * | * |
+| 4.4 | Bug Report | Testing | QA Engineer | Standardized defect tracking | * | * | * |
+| 4.5 | Performance Report | Testing | Perf Engineer | Load and stress test results | | * | * |
+| 4.6 | Security Assessment | Testing | Security Eng | Vulnerability findings | | * | * |
+| 4.7 | RTM | Testing+ | QA Lead | Requirement-to-test mapping (cross-cutting) | | * | * |
+| 5.1 | Deployment Plan | Deployment | DevOps | Step-by-step deploy instructions | | * | * |
+| 5.2 | Release Notes | Deployment | PM | What changed in this release | * | * | * |
+| 5.3 | Rollback Plan | Deployment | DevOps | How to revert if things break | | * | * |
+| 5.4 | CI/CD Pipeline Doc | Deployment | DevOps | Pipeline stages and config | * | * | * |
+| 5.5 | Change Request | Deployment | PM | Formal change approval | | * | * |
+| 5.6 | Go-Live Checklist | Deployment | Release Mgr | Pre-launch verification | * | * | * |
+| 6.1 | SOP | Operations | Ops Lead | Routine operational procedures | | * | * |
+| 6.2 | Runbook | Operations | SRE | Response to specific scenarios | | * | * |
+| 6.3 | Incident Response | Operations | SRE Lead | How we handle outages | * | * | * |
+| 6.4 | SLA/SLO | Operations | SRE / PM | Reliability targets and promises | | * | * |
+| 6.5 | Monitoring Config | Operations | DevOps | What we watch and alert on | * | * | * |
+| 6.6 | PIR / Post-Mortem | Operations | Eng Manager | Blameless incident analysis | * | * | * |
+| 7.1 | KT Handover | Cross-cutting | Outgoing team | System/role transition | | * | * |
+| 7.2 | Onboarding Guide | Cross-cutting | Eng Manager | New hire ramp-up | | * | * |
+| 7.3 | Risk Register | Cross-cutting | PM | Tracked risks and mitigations | | * | * |
+| 7.4 | RACI Matrix | Cross-cutting | PM | Who does what | | * | * |
+| 7.5 | Meeting Minutes | Cross-cutting | Note-taker | Decisions and action items | | * | * |
+| 7.6 | Lessons Learned | Cross-cutting | Scrum Master | What to improve next time | * | * | * |
+| 7.7 | Vendor Assessment | Cross-cutting | Tech Lead | Tool/vendor comparison | * | * | * |
+| 7.8 | Compliance Doc | Cross-cutting | Security Lead | Regulatory evidence | | | * |
+| 7.9 | User Manual | Cross-cutting | Tech Writer | End-user guide | * | * | * |
+| 7.10 | Technical Debt Log | Cross-cutting | Tech Lead | Tracked debt and pay-down plan | | * | * |
 
 ---
 
