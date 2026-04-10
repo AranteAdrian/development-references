@@ -69,6 +69,49 @@ The thinking model is there. The process is there. The instinct is there. Now it
 
 ---
 
+## What an Architect Actually Is
+
+An architect is **wide enough to connect the dots, deep enough to know when something is wrong, and honest enough to defer to specialists when needed.**
+
+### Specialist vs Architect
+
+| Dimension | Specialist (Senior Engineer) | Architect |
+|---|---|---|
+| Knowledge shape | Knows one area deeply | Knows many areas well enough |
+| Problem solving | Can build the best solution | Can choose the right solution |
+| Primary question | "What's the best way?" | "What's the right trade-off?" |
+| Direction | Goes deep on implementation | Goes wide on integration |
+| Expertise | Expert in the HOW | Expert in the WHY and WHEN |
+
+### What "Good Enough" Means for an Architect
+
+| Area | Architect needs to... | Architect does NOT need to... |
+|---|---|---|
+| **Security** | Know the attack surfaces, recognize when auth is missing, know which patterns protect against what | Write a custom encryption algorithm or configure firewall rules |
+| **Frontend** | Know when a UI architecture is wrong (state management chaos, no component structure) | Write pixel-perfect CSS or optimize React render cycles |
+| **Database** | Know when the data model doesn't fit the access pattern, recognize N+1 queries, choose SQL vs NoSQL | Write complex query optimizations or tune database engine internals |
+| **DevOps** | Know when the deployment model is wrong, when CI/CD is missing, when IaC is needed | Write Terraform modules from scratch or configure Kubernetes networking |
+| **AI/ML** | Know when RAG vs fine-tuning is the right choice, when to use agents vs pipelines | Train models or optimize embedding algorithms |
+| **Networking** | Know when latency is a design issue, when to use async vs sync communication | Configure load balancers or debug TCP packet-level issues |
+
+### The Connecting Skill
+
+The thing that makes an architect valuable isn't depth in any single area — it's the ability to **see how areas affect each other**:
+
+- "This frontend state management choice will create scaling problems on the backend"
+- "This database schema works for reads but will bottleneck writes when we add real-time features"
+- "This deployment model is fine now but will block the security requirements coming next quarter"
+
+Nobody else in the team sees across these boundaries. The frontend dev sees frontend. The backend dev sees backend. The architect sees the **seams** — where one decision in one area creates a consequence in another.
+
+### The Bottom Line
+
+> An architect knows enough about each area to **ask the right questions, recognize the wrong answers, and connect decisions across boundaries** — not to be the best implementer in every room.
+
+The moment an architect tries to be the best at everything, they become a bottleneck. Their job is to make the team's collective decisions coherent, not to replace specialists.
+
+---
+
 <!-- 
 === HOW TO ADD NEW SCENARIOS ===
 
