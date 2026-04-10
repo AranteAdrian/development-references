@@ -23,6 +23,21 @@ By the end of this document, the junior developer should be able to:
 
 Make the architecture as clear as glass. Produce the following sections in order.
 
+## THE PATTERN CONTEXT RULE: Every Pattern Must Be Explained, Not Just Named
+
+When identifying any architecture pattern, technology, or protocol in this audit, do not just name it. For every pattern mentioned, provide:
+
+1. **What it is** — A plain-English explanation that someone unfamiliar with the term can understand on first read.
+2. **Why it's a common choice for this scenario** — What makes this pattern a natural fit for the type of problem this component solves.
+3. **Common alternatives in this space** — What other patterns or technologies are commonly used for the same type of problem, with a one-line explanation of each. This broadens the reader's technical vocabulary and helps them understand the landscape of options, not just the one that was picked.
+4. **Why this one was chosen over the alternatives** — What specific characteristic of this component's requirements made this pattern the better fit.
+
+Example — instead of: *"The notification system uses SSE."*
+
+Write: *"The notification system uses **SSE (Server-Sent Events)** — a protocol where the server pushes updates to the client over a single long-lived HTTP connection. SSE is a common choice for one-directional real-time updates (server → client) like notifications, progress bars, or live feeds. Common alternatives for real-time communication include **WebSocket** (bidirectional, heavier — used when the client also needs to send data back, like chat), **Long Polling** (simpler but less efficient — the client repeatedly asks the server for updates), and **Polling** (simplest but most wasteful — the client checks on a fixed interval regardless of whether anything changed). SSE fits here because the client only needs to receive updates, never send them — making WebSocket's bidirectional capability unnecessary overhead."*
+
+This rule applies to every Group in the 6-Group Thinking Model below — deployment patterns, communication patterns, code structure patterns, data patterns, failure handling patterns, and design patterns.
+
 ---
 
 ## Section 1: Architecture Through the 6-Group Thinking Model
