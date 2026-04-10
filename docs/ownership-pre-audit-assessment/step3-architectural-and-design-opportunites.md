@@ -59,11 +59,20 @@ Using the 6-Group Architecture Thinking Model (see `architecture/architecture-pa
 
 Part 2 identified the deployment pattern (Monolith / Modular Monolith / Microservices / Serverless / Hybrid). Now assess:
 
+**Production deployment fit:**
 - Is the deployment pattern still the right fit for the current and projected workload? Has the system outgrown it?
 - Are there components that need to scale independently but are locked into a shared deployment? (e.g., a CPU-intensive pipeline deployed alongside a lightweight API)
 - Are there components deployed as separate services that do not need to be? (e.g., a microservice that always deploys with another — a distributed monolith in disguise)
 - Is the deployment infrastructure (Docker, K8s, PaaS, serverless) appropriate for the workload profile — or is it over/under-engineered?
 - Are there components that would benefit from a different deployment model? (e.g., bursty event-triggered work that should be serverless instead of always-on)
+
+**Local development experience:**
+- Can a new developer start the full application stack with a single command? Or must they manually install, configure, and start each dependency (databases, backend, frontend, external services) separately?
+- If the app uses multiple services (databases, backend, frontend, workers, caches), is there a Docker Compose file (or equivalent multi-container orchestration) that starts all of them together with correct networking, environment variables, and volume mounts?
+- Does the local development setup work across all developer operating systems (macOS, Windows, Linux)? Or are there OS-specific scripts, paths, or tooling that exclude some platforms?
+- Is there parity between local and production? Do developers run the same containers, databases, and configurations locally as what runs in production — or is the local setup fundamentally different (e.g., SQLite locally vs. PostgreSQL in production, bare processes locally vs. Docker in production)?
+- If setup scripts exist (bootstrap, seed, init), are they idempotent (safe to re-run) and do they handle both first-time setup and incremental updates?
+- Is the time from `git clone` to a running application measured in minutes (acceptable) or hours (problematic)?
 
 For each finding, follow the Explanation Rule above.
 

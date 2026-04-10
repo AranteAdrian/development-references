@@ -69,11 +69,22 @@ Using the 6-Group Architecture Thinking Model, answer each architectural questio
 
 ### Group 1 — Deployment: How Does the System Exist?
 
+**Production deployment:**
 - What deployment pattern is used? (Monolithic / Modular Monolith / Microservices / Serverless / Hybrid)
 - How is it deployed? (Docker, K8s, bare VM, PaaS like App Service?)
 - Any IaC present? (Terraform, Bicep, CloudFormation)
 - Why was this pattern chosen over alternatives?
 - **What was traded away by choosing this deployment model?** (e.g., independent scalability, isolated failure domains, independent deploy cadence) **Under what conditions does this tradeoff break?**
+
+**Local development setup:**
+- How do developers run the application locally? (Docker Compose, bare processes, dev containers, Tilt, Skaffold, or manual setup?)
+- Is there a single command to start the full stack (app, databases, caches, workers, external service mocks)? If so, what is it? If not, what are the manual steps?
+- What orchestration tool is used for local multi-service setups? (Docker Compose, Podman, dev containers, or none?)
+- What is the local-to-production parity? Do developers run the same containers, databases, and configurations locally as production — or are there differences? (e.g., SQLite locally vs. PostgreSQL in production, bare processes locally vs. Docker in production)
+- What operating systems are supported? Are there OS-specific scripts, paths, or tooling that limit local development to specific platforms?
+- Are there setup scripts (bootstrap, seed, init)? Are they idempotent (safe to re-run)?
+- Approximately how long does it take to go from `git clone` to a running application?
+- **What was traded away by choosing this local setup?** (e.g., Docker Compose trades away fast hot-reload for parity; bare processes trade away parity for speed; dev containers trade away simplicity for reproducibility) **Under what conditions does this tradeoff break?**
 
 ### Group 2 — Communication: How Do Components Talk?
 
