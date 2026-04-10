@@ -1,4 +1,4 @@
-# Engineer to Architect — Thinking Model & Growth Reference
+mmit # Engineer to Architect — Thinking Model & Growth Reference
 
 A scalable collection of comparisons, thinking patterns, and lessons learned on the path from engineer to architect. Add new scenarios as you encounter them.
 
