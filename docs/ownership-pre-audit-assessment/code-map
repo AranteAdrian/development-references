@@ -1,0 +1,349 @@
+# Feature-First Codebase Trace
+
+## The Problem
+
+You just took ownership of a codebase you didn't build. Maybe it was vibe-coded, maybe the original developer left, maybe your team inherited it as a product that now needs to scale. Whatever the reason, you're staring at a project full of files and folders with no documentation, no architecture diagram, and no one to walk you through it.
+
+You need to answer basic questions but you can't:
+- What does this app actually do?
+- How many features does it have?
+- When a user clicks "submit," what code runs and in what order?
+- Which parts are connected to each other?
+- What breaks if I change this one file?
+
+This prompt solves that. It generates a complete, plain-language map of the entire codebase — organized by feature, traced step by step, with every connection labeled and every purpose explained. The output is readable by developers, QA, project managers, and anyone new to the project.
+
+## What This Prompt Generates (The Thinking Model)
+
+The prompt produces a **6-step document** that lets you understand the codebase at different zoom levels:
+
+| Step | What it answers | Who it's for | How to read it |
+|------|----------------|-------------|---------------|
+| **Step 1 — Feature inventory** | "What does this app do and what features does it have?" | Everyone — PM, QA, new dev, manager | Read the app description first. Then scan the feature table to see the full scope. Read each feature's purpose block to understand why it exists and what breaks without it. |
+| **Step 2 — How features connect** | "How is each feature plugged into the app?" | Developers, tech leads | For each feature, see the exact file that loads it, the URL where it's accessible, what security checks run before it, and what must be running first (database, cache, etc.). |
+| **Step 3 — Execution chains** | "When this action runs, what happens step by step?" | Developers doing the actual work | Read the numbered table top to bottom. Each row is one step in the execution. The "What happens" column tells the story. The "Where" column tells you which file to open. The "Why" column tells you what breaks if you remove that step. |
+| **Step 4 — Feature connections** | "What does each feature rely on, and what relies on it?" | Developers planning refactoring | Look for cross-feature borrowing (red flags). If Feature A reaches into Feature B's code, that's tight coupling — changing B might break A. |
+| **Step 5 — Shared modules** | "What code is shared across features?" | Developers, architects | These are the foundation pieces. Bugs here multiply across every feature. Changes here affect everything. Handle with care. |
+| **Step 6 — Output file** | "Can I reference this later?" | Everyone | The entire trace is saved as CODEBASE_MAP.md in the project root. Open it anytime, share it with the team, update it when the codebase changes. |
+
+## The Prompt
+
+```
+Trace this entire backend codebase FEATURE BY FEATURE, from top to bottom.
+
+CONTEXT: I am taking over ownership of this codebase. I did not build it. I need a complete, plain-language map of how the entire application works — what features it has, what each feature does, why each piece exists, and how the code executes step by step when each action runs. The goal is to have a common and easy-to-understand reference that anyone on the team (developer, QA, project manager, or new hire) can read to understand how this codebase flows. No refactoring suggestions — just map what exists and explain why each piece is there.
+
+STEP 1 — FEATURE INVENTORY & PURPOSE
+First, list every feature/domain in this codebase. A feature is a logical group of related actions that serve one purpose (e.g., authentication, orders, payments, users, reports).
+
+Before the table, write a GROUP DESCRIPTION that explains the app as a whole:
+
+**App purpose:** What does this application do? Who is it for? In 2-3 sentences, describe what problem this app solves so that anyone — developer, QA, manager, or new hire — understands the big picture before reading individual features.
+
+**Why the app matters:** What business value does it provide? What would the company or users lose without it?
+
+**Feature count:** State the total in this format: "X features (X API router modules serving X total endpoints)". This gives an immediate sense of the app's scope and complexity. Example: "19 features (19 API router modules serving 78 total endpoints)"
+
+Then present the feature table with these columns:
+
+| # | Feature Name | File Location | URL Path | Endpoints & What Each One Does |
+
+Column guide (so anyone reading knows what they're looking at):
+- **#** — Just a number for easy reference (Feature 1, Feature 2, etc.)
+- **Feature Name** — The human-readable name of this feature (e.g., "Project Management", "Authentication")
+- **File Location** — Where this feature's code lives in the project folder. This tells a developer exactly which file to open to find this feature. (e.g., src/routers/auth.py, modules/orders/router.ts)
+- **URL Path** — The base web address where this feature is accessible. When the frontend or another system wants to use this feature, this is the address they call. (e.g., /api/v1/auth, /api/v1/projects)
+- **Endpoints & What Each One Does** — Every API operation in this feature. For each endpoint, write THREE things: the method and path, what it does, and why it matters to this feature. Format each as: `METHOD /path — what it does. Why it matters: why this endpoint is important in the context of this feature.` Example:
+  - `POST /login — Checks email and password, returns a login token. Why it matters: This is the gateway to the entire app. Without it, no user can access any protected feature.`
+  - `POST /register — Creates a new user account. Why it matters: This is how new users enter the system. Without it, the app has a fixed set of users with no way to grow.`
+  - `GET /me — Returns the currently logged-in user's profile. Why it matters: The frontend needs this to display the user's name, role, and permissions on every page. Without it, the app doesn't know who is logged in.`
+  - `POST /forgot-password — Sends a password reset email. Why it matters: Users who lose their password are permanently locked out without this. It's a support cost reducer.`
+  This column is the most important one — it tells you everything this feature can do AND why each piece matters. IMPORTANT: Each endpoint must be on its OWN line within the cell. Use `<br>` between each endpoint so they don't run together into a paragraph.
+
+AFTER the table, list each feature with its full purpose description. Use numbered feature names that match the table:
+
+**Feature 1: [NAME]**
+
+**What it does:**
+In plain language, describe what this feature handles. What part of the app is this responsible for? Explain it as if you're telling a non-developer teammate. (2-3 sentences)
+
+**Why it exists:**
+What business need or user need does this feature serve? Why was it built? What goal does it accomplish? (1-2 sentences)
+
+**What breaks without it:**
+If you deleted this entire feature from the app today, what happens? What can users no longer do? What other features stop working because they depend on this one? Be specific — chain the consequences. Don't just say "things break." Say exactly what breaks and what that means for the user.
+
+**Who uses it:**
+Which people, roles, or systems interact with this feature? (e.g., "all users when they log in", "only admins from the dashboard", "the mobile app calls this", "a scheduled job runs this every night")
+
+**Feature 2: [NAME]**
+
+**What it does:**
+...
+
+**Why it exists:**
+...
+
+**What breaks without it:**
+...
+
+**Who uses it:**
+...
+
+(Repeat for every feature found in the inventory table)
+
+STEP 2 — HOW FEATURES CONNECT TO THE APP
+Show how EACH feature is plugged into the main application. Trace the exact connection chain from the starting file to the feature:
+
+Example:
+Feature: Assessment
+Connection chain: main.py loads the assessment feature → from routers.assessment import router
+Accessible at URL: /api/v1/assessment (this is the address the frontend uses to reach this feature)
+Guards applied before access: [login required, rate limiting] (checks that run before the feature code executes)
+Requires running first: [database connection, cache connection] (things that must be started before this feature works)
+
+Do this for EVERY feature found in Step 1.
+
+STEP 3 — FEATURE DEEP TRACE
+For EACH feature, trace from its route file all the way to the bottom layer.
+
+The trace must show the EXECUTION ORDER — what happens first, what happens second, what happens third, all the way to the end. This is NOT a list of files involved. This is the story of what the code does, step by step, when this action is triggered.
+
+Use this exact structure:
+
+### Feature: [NAME]
+**Feature file:** path/to/router.py (line count)
+**Accessible at URL:** /api/v1/[name]
+
+---
+
+**Action 1: METHOD /path** (e.g., POST /projects)
+
+**Purpose:**
+What this action does (one line)
+
+**Why it exists:**
+What user action or system need triggers this? What would be impossible without it?
+
+**What depends on it:**
+Which pages, other actions, or outside systems call this?
+
+**Execution chain (what happens step by step when this action runs):**
+
+| Step | What happens | Where (file:function) | Type | Why this step is needed |
+|------|-------------|----------------------|------|----------------------|
+| 1 | Request arrives. The input data is checked — are all required fields present? Are the values valid? | schemas/api.py:ProjectCreate | Input validation | Rejects bad data before any work begins. Without this, invalid data enters the system and causes errors later. |
+| 2 | The route handler receives the validated input and opens a database connection. | projects.py:create_project() + database.py:get_db() | Route handler + System setup | This is the entry door. It coordinates everything that follows. |
+| 3 | The system checks if the provided connection IDs actually exist in the database. | models/orm/core.py:Connection (query) | Data access | Without this check, a project could reference connections that don't exist, causing failures when the project tries to use them. |
+| 4 | If a stored procedure name was provided, the system fetches its SQL code from the database. | services/connection.py:get_source_procedure() | Business logic | This is optional — only runs when the user links a stored procedure to the project. Skipped otherwise. |
+| 5 | The system generates a safe table prefix from the project name (e.g., "My Project" becomes "my_project_"). | services/naming.py:generate_table_prefix() | Helper | Database tables need safe names. Special characters or spaces would break SQL queries. |
+| 6 | A new project row is created in the database with a unique ID, the validated name, and the generated prefix. | models/orm/core.py:Project (insert) | Data access | This is the core action — the project now exists in the system. |
+| 7 | The newly created project data is sent back to the caller as a response. | (return from route handler) | Output | The frontend needs the project ID and details to navigate the user to the new project page. |
+
+**What data flows through this chain:**
+- Input: project name, source schema, connection IDs (optional), stored procedure name (optional)
+- Output: project object with UUID, name, table prefix, timestamps
+
+**Conditional branches (if any):**
+- If source_sp is provided → Step 4 runs. If not → Step 4 is skipped.
+- If connection IDs are provided → Step 3 runs validation. If not → Step 3 is skipped.
+
+TYPE LABELS (use these in the "Type" column):
+- **Input validation** — Checking that incoming data is correct before doing anything
+- **Route handler** — The entry point that receives the request and coordinates the work
+- **System setup** — Opening database connections, cache connections, etc.
+- **Business logic** — The core rules and decisions (the brain of this action)
+- **Data access** — Reading from or writing to the database
+- **Helper** — A reusable tool (formatting, generating IDs, hashing, etc.)
+- **Outside service** — Calling an external API or third-party system
+- **Output** — Shaping and returning the response to the caller
+- **Event/trigger** — Firing a background job, sending a notification, logging an event
+
+---
+
+**Action 2: METHOD /path**
+
+**Purpose:**
+(one line)
+
+**Why it exists:**
+(what can't happen without it)
+
+**What depends on it:**
+(who calls this)
+
+**Execution chain:**
+
+| Step | What happens | Where (file:function) | Type | Why this step is needed |
+... (same table format)
+
+Repeat for every action in this feature.
+
+STEP 4 — FEATURE DEPENDENCY MAP
+After tracing each feature, list what it depends on:
+
+### Feature: [NAME]
+**Internal dependencies (within this feature):**
+- service → repo → model (normal vertical chain)
+
+**Shared dependencies (core modules used):**
+- config/settings.py — uses [which settings]
+- db/session.py — database access
+- middleware/auth.py — route protection
+- utils/[name].py — [which functions]
+
+**Cross-feature dependencies (imports from other features — flag these):**
+- imports from [other_feature].services.[name] — [why]
+- imports from [other_feature].models.[name] — [why]
+
+**Depended on BY (other features that import from this feature):**
+- [other_feature] imports [what] from this feature
+
+STEP 5 — SHARED CORE SUMMARY
+After all features are traced, list every shared/core module:
+
+| Module | Type | What It Does | Why It Exists | What Breaks Without It | Used By Features |
+
+STEP 6 — WRITE THE OUTPUT FILE
+After completing all steps, write the entire trace to a dedicated markdown file in the project root:
+
+Filename: CODEBASE_MAP.md
+
+Structure the file as:
+
+```markdown
+# Codebase Map
+> Auto-generated trace of [project name]. Last updated: [date]
+
+## Table of Contents
+1. Feature Inventory & Purpose
+   - App purpose
+   - Why the app matters
+   - Feature count: X features (X API router modules serving X total endpoints)
+   - Feature table (with endpoint lists)
+   - Feature purpose blocks (Feature 1 through Feature X)
+2. How Features Connect to the App
+3. Feature Traces
+   - [Feature 1]
+   - [Feature 2]
+   - ...
+4. Feature Connection Map
+5. Shared Core Modules
+6. Quick Stats
+
+## 1. Feature Inventory & Purpose
+
+**App purpose:** (what the app does, who it's for)
+**Why the app matters:** (business value)
+**Feature count:** X features (X API router modules serving X total endpoints)
+
+### Feature Table
+| # | Feature Name | File Location | URL Path | Endpoints & What Each One Does |
+
+### Feature 1: [Name]
+**What it does:** ...
+**Why it exists:** ...
+**What breaks without it:** ...
+**Who uses it:** ...
+
+### Feature 2: [Name]
+(repeat for each feature)
+
+## 2. How Features Connect to the App
+(Step 2 output — how each feature is plugged into the main app, what URL it lives at, what guards run before access, what must be running first)
+
+## 3. Feature Traces
+
+### 3.1 [Feature Name]
+(Step 3 output — each action with purpose, why it exists, what depends on it, then the numbered execution chain table showing step-by-step what happens when this action runs)
+
+### 3.2 [Feature Name]
+(repeat for each feature)
+
+## 4. Feature Connection Map
+
+### 4.1 [Feature Name]
+(Step 4 output — internal, shared, cross-feature deps)
+
+### 4.2 [Feature Name]
+(repeat for each feature)
+
+## 5. Shared Core Modules
+(Step 5 output — table of all shared modules and who uses them)
+
+## 6. Quick Stats
+- Total features: X
+- Total actions (API operations): X
+- Total files traced: X
+- Total shared modules: X
+- Cross-feature borrowing found: X (features reaching into other features — potential problems)
+- Files with 0 test coverage: X
+```
+
+Save this file at the project root as `CODEBASE_MAP.md`.
+If the file already exists, overwrite it with the latest trace.
+
+RULES:
+- Every feature MUST have a purpose block (what it does, why it exists, what breaks without it, who uses it).
+- Every endpoint MUST have a purpose line, a "why it exists" line, and a "what depends on it" line. These should be written in plain language that a non-developer can understand.
+- For the "what breaks without it" descriptions, be SPECIFIC. Don't say "the app breaks." Say "users cannot log in, which means all authenticated endpoints return 401, which means the entire app is unusable after the landing page."
+- Trace ALL the way down per endpoint. Don't stop at the service — go into repos, models, utils, external calls.
+- If a function calls sub-functions within the same file, still show them as children.
+- Show actual function names, not just file names. I want to know WHICH function in auth_service.py is called, not just that auth_service.py is used.
+- Include line counts for every file.
+- If an endpoint has conditional branches (e.g., if admin do X, else do Y), show both paths.
+- Do NOT suggest improvements or refactoring. Just trace what exists and explain why each piece is there.
+- ALWAYS write the CODEBASE_MAP.md file at the end. Do not skip this step.
+
+CRITICAL FORMATTING RULES (follow these exactly — do NOT collapse sections into a wall of text):
+
+1. BETWEEN ACTIONS: Always put a horizontal rule (---) and a blank line between each action. Never run Action 2 immediately after Action 1. Correct:
+
+---
+
+**Action 1: POST /projects**
+
+**Purpose:**
+Creates a new project in the system.
+
+**Why it exists:**
+Users need a way to start a new project. Without this, the only way to create projects would be directly in the database.
+
+**What depends on it:**
+The frontend "New Project" button calls this. All other project actions (design, models, export) need a project to exist first.
+
+**Execution chain:**
+| Step | What happens | Where | Type | Why |
+|------|-------------|-------|------|-----|
+| 1 | ... | ... | ... | ... |
+
+---
+
+**Action 2: GET /projects**
+
+**Purpose:**
+Lists all projects the user has access to.
+
+...and so on.
+
+2. WITHIN EACH ACTION: Every field (Purpose, Why it exists, What depends on it) MUST be on its OWN line with a blank line after it. NEVER put them on the same line. Wrong:
+   Action 1: POST /generate Purpose: Generates sources.yml Why it exists: dbt needs sources.yml What depends on it: dbt Execution
+   
+   Correct:
+   **Action 1: POST /generate**
+   
+   **Purpose:**
+   Generates sources.yml and custom tests for all approved target models.
+   
+   **Why it exists:**
+   dbt needs sources.yml for source macros. Custom tests provide data quality validation.
+   
+   **What depends on it:**
+   dbt Execution feature needs sources.yml and tests to run.
+
+3. IN THE FEATURE TABLE (Step 1): Each endpoint in the "Endpoints & What Each One Does" column must be on its own line within the cell. Use <br> for line breaks inside markdown table cells. Never run endpoints together in a continuous paragraph.
+
+4. IN THE FEATURE PURPOSE BLOCKS (Step 1): Each section heading (What it does, Why it exists, What breaks without it, Who uses it) must be bold, on its own line, with the description starting on the next line and a blank line after each section.
+
+5. GENERAL: When in doubt, add more whitespace, not less. A document that breathes is readable. A document that's crammed together is useless.
+```
