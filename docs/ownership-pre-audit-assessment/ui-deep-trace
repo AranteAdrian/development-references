@@ -1,0 +1,254 @@
+I need you to analyze this UI and explain every single screen, element, and data point as if you are a 1% architect who can make both technical and non-technical people fully understand what they're looking at.
+
+Do NOT give me high-level descriptions like "this is a dashboard with project metrics." That tells me nothing. I need you to explain what EVERY element means, where the data comes from, why it matters, and what the user is supposed to do with it.
+
+CONTEXT: I am taking over this product / onboarding onto this project. I need to understand the UI deeply — not just what it looks like, but what every piece of information means, where it comes from, and why it's there. The output should be understandable by developers, QA, project managers, and anyone new to this product.
+
+Use plain language. Explain technical terms when they appear. Write as if you're sitting next to someone and walking them through every screen.
+
+STEP 1 — SCREEN INVENTORY List every screen/page in the application:
+
+| # | Screen Name | URL or Route | What This Screen Is For (one sentence) |
+
+After the table, provide:
+
+App flow: Describe the typical user journey through these screens. What screen do they land on first? Where do they go next? What's the main path a user follows to accomplish their goal?
+
+STEP 2 — SCREEN DEEP TRACE
+
+CRITICAL RULE: Follow the user's actual experience. Trace each screen the way a user USES it — not as a flat list of elements, but as a journey from what they see first, to what they explore, to what they click into, to what they find deeper.
+
+The rule is: GO DEEP BEFORE GOING WIDE.
+
+When you encounter a tab, a section, or a clickable area — FULLY EXPLAIN everything inside it (every element, table, detail view, and action) BEFORE moving to the next tab or section. Do NOT list all tabs first then go back and explain each one. Enter Tab 1 → explain everything the user sees inside Tab 1 → explain every table inside Tab 1 → explain every row detail inside Tab 1 → explain every action inside Tab 1 → THEN move to Tab 2 and repeat.
+
+For EACH screen, use this structure:
+
+Screen [#]: [NAME]
+What this screen is for: In plain language, what is the user doing on this screen? What's the goal of this page? (2-3 sentences)
+
+Why this screen exists: Why does this screen need to exist as a separate page? What would be missing from the app without it?
+
+Who uses this screen: Which users, roles, or personas interact with this screen?
+
+What the user is trying to decide or do here: What question is the user answering when they look at this screen? What decision are they making? (This explains the PURPOSE behind every element that follows.)
+
+Now trace the screen following the user's experience, layer by layer:
+
+FIRST GLANCE — what the user sees in the first 3 seconds
+
+These are the most prominent elements — the headline metrics, the page title, the main status. The user hasn't clicked anything yet. They're just scanning.
+
+For EACH element at this level, trace it with full depth before moving to the next element:
+
+Element: [Name]
+
+What it shows: What does the user literally see? (the number, text, color, icon)
+
+What it means: What does this actually represent? If a number — what is it measuring and how? If a status — what are all possible states?
+
+Where the data comes from: Where is this value calculated, fetched, or derived from? Be specific — name the formula, API, or logic.
+
+Why it matters: Why should the user care? What decision does this inform? What's a "good" vs "bad" value?
+
+What happens when you interact with it: If clickable — where does it take you? What does it reveal?
+
+What would be lacking without it: What does the user lose if this element disappears?
+
+(Trace the next first-glance element... repeat until all are covered.)
+
+SECTIONS AND ZONES — the main areas of the screen
+
+After the first glance, the user sees the screen has sections — maybe a row of cards, a tab bar, a sidebar. Describe each section briefly, then deep dive into the FIRST section completely before moving to the next:
+
+Section: [Name] (e.g., "Summary cards row", "Tab navigation", "Sidebar")
+
+What this section contains: List the elements inside.
+Why these elements are grouped together: What do they have in common?
+How this section relates to other sections: Does selecting something here change what appears elsewhere?
+TABS / SUB-VIEWS — GO DEEP BEFORE GOING WIDE
+
+This is where most traces fail. They list "Tab 1, Tab 2, Tab 3" and then go back to explain each one. DO NOT DO THAT.
+
+Instead, follow the user:
+
+Tab 1: [Name] (e.g., "Models" — this is the default/first tab)
+
+What this tab shows: What content appears when the user clicks this tab?
+
+Why this tab exists as a separate view: What is the user's mindset when they click this tab? What are they looking for?
+
+What this tab shows that no other tab shows: What information is UNIQUE to this tab?
+
+Where this tab fits in the workflow: Is this tab part of a sequence? (e.g., first check Sources, then Models, then Risk)
+
+What would be lacking without this tab: If you removed this tab entirely, what information or capability disappears from the product?
+
+NOW — stay inside Tab 1 and trace EVERYTHING the user sees:
+
+Element: [first thing the user sees inside this tab]
+
+What it shows:
+What it means:
+Where the data comes from:
+Why it matters:
+What happens when you interact with it:
+What would be lacking without it:
+Element: [next element inside this tab] (full depth... repeat for every element)
+
+If there's a TABLE inside this tab, trace the table fully NOW — before leaving:
+
+Table: [Name] (e.g., "Target Models")
+
+What this table is showing: What does each ROW represent?
+
+Column breakdown:
+
+Column Name	What It Shows	What It Means	Why It's Here
+Name	...	...	...
+Score	...	...	...
+Status	...	...	...
+How the table is sorted by default and why:
+
+What actions are available per row:
+
+What the empty state looks like and what it tells the user:
+
+What would be lacking without this table:
+
+If clicking a ROW opens a detail view, trace it NOW — do not save it for later:
+
+Detail view: Click [row item] → [what appears]
+
+What new information appears here that wasn't visible in the table:
+What the user can do at this level: (edit, approve, compare, export, etc.)
+How does the user get back: (close button, back arrow, breadcrumb)
+For EACH element in the detail view, trace with full depth:
+
+**Element: [Name]**
+- What it shows:
+- What it means:
+- Where the data comes from:
+- Why it matters:
+- What would be lacking without it:
+For EACH action available in the detail view:
+
+**Action: [Button name]** (e.g., "Approve Model", "Edit SQL")
+
+- **What this action does:**
+  In plain language — what happens when clicked?
+
+- **What changes in the system:**
+  What data is created, updated, or deleted?
+
+- **What the user sees after:**
+  Does the screen refresh? A success message? Navigation somewhere?
+
+- **Is this reversible?**
+  Can the user undo this?
+
+- **What would be lacking without this action:**
+  If this button didn't exist, what can the user no longer do?
+(Continue until the detail view is fully exhausted.) (Back to the table — any remaining elements or actions.) (Continue until everything inside Tab 1 is fully exhausted.)
+
+ONLY AFTER Tab 1 is completely traced, move to Tab 2:
+
+Tab 2: [Name] (e.g., "Risk")
+
+What this tab shows:
+Why this tab exists as a separate view:
+What this tab shows that no other tab shows:
+Where this tab fits in the workflow:
+What would be lacking without this tab:
+NOW — stay inside Tab 2 and trace EVERYTHING:
+
+Element: [first thing inside this tab] (e.g., "Risk summary — 1 High, 10 Medium, 4 Low")
+
+What it shows: Three colored badges showing counts per risk level.
+
+What it means: Each model is assigned a risk level based on [rules/thresholds]. "1 High" means one model has critical issues that need attention before production. "10 Medium" means ten models have moderate concerns. "4 Low" means four models are low risk.
+
+Where the data comes from: Risk is calculated per model based on [factors — complexity, missing mappings, SQL quality, etc.]. The counts are aggregations of individual model risk levels.
+
+Why it matters: This tells the user where to focus their review time. High-risk models should be reviewed first. If all models are Low, the project is probably safe to proceed.
+
+What would be lacking without it: The user would have to open every model individually to assess risk. They'd have no way to prioritize their review — they'd waste time on Low-risk models while a High-risk one breaks in production.
+
+(Continue tracing every element, table, detail view, and action inside Tab 2... fully exhausted before moving on.)
+
+Tab 3: [Name] (Enter → trace everything → fully exhaust → leave → next tab.)
+
+(Repeat until ALL tabs are fully traced.)
+
+SCREEN-LEVEL ACTIONS — buttons and triggers that affect the whole screen/feature
+
+After all tabs and views are traced, list the actions that live at the screen level (not inside a specific tab):
+
+Action: [Button name] (e.g., "Run Design", "Export", "Delete Project")
+
+What this action does:
+What changes in the system:
+What the user sees after:
+Is this reversible?
+What would be lacking without this action:
+REPEAT the entire structure for the next screen.
+
+SPECIFIC ELEMENTS THAT NEED EXTRA DEPTH (people always explain these too vaguely):
+
+Scores, percentages, and metrics: Don't just say "a score of 78%." Explain:
+
+What is being measured (the formula or logic)
+What's a good score vs a bad score (thresholds)
+What the user should do if the score is low vs high
+Where the underlying data comes from
+Status badges and tags (High, Medium, Low, etc.): Don't just say "risk level." Explain:
+
+What determines the level (what rules or thresholds)
+What each level means in practical terms
+What the user should do about each level
+How many items are in each level and why that count matters
+Charts and visualizations: Don't just say "a bar chart of results." Explain:
+
+What the X axis represents
+What the Y axis represents
+What pattern the user should look for
+What a "good" chart looks like vs a "bad" one
+What the user should do based on what the chart shows
+STEP 3 — SCREEN CONNECTIONS After tracing each screen, map how screens connect to each other:
+
+From Screen	Action/Trigger	To Screen	What Carries Over
+Project List	Click a project	Project Dashboard	Project ID, project name
+Project Dashboard	Click "Run Design"	Design Progress	Project ID, design config
+Design Progress	Design completes	Models Tab	Generated models appear
+This shows the user journey and helps developers understand navigation flow.
+
+STEP 4 — GLOSSARY After all screens are traced, create a glossary of every domain term that appears in the UI:
+
+Term	What It Means	Where It Appears	Why It Matters
+Model	A generated dbt SQL file that transforms source data into a target table	Dashboard, Models tab	Each model = one piece of the data pipeline
+Iteration	One run of the AI design process	Dashboard, History tab	More iterations = more refinement attempts
+Source object	A table or view from the source database	Sources tab, Dashboard	These are the raw inputs the AI reads from
+STEP 5 — WRITE THE OUTPUT FILE Save the entire trace to a file in the project root:
+
+Filename: UI_MAP.md
+
+RULES:
+
+GO DEEP BEFORE GOING WIDE. This is the #1 rule. Fully exhaust everything inside a tab, section, table, or detail view BEFORE moving to the next one. Never list all tabs first then go back to explain them. Enter → trace everything inside → leave → next.
+The trace order must follow the user's experience: first glance → sections → enter first tab → everything inside that tab (elements, tables, row details, actions) → leave tab → enter next tab → repeat.
+Explain EVERY element, not just the "important" ones. The tab that says "Risk" with a badge "1 High, 10 Medium" needs just as much explanation as the main score.
+Use plain language. If a technical term appears in the UI, explain what it means the first time you encounter it.
+When explaining "where the data comes from," be as specific as possible. Name the API endpoint, the database field, or the calculation logic.
+For every number, ask yourself: "If a PM asked me what this number means and why it's that value, could I explain it?" If not, dig deeper.
+For every button, ask yourself: "If a new user asked me what happens when I click this, could I walk them through the entire consequence?" If not, trace it further.
+Do NOT give high-level summaries. "This dashboard shows project metrics" is USELESS. "This dashboard shows 4 metrics: average model score (quality), model count (scope), iteration count (effort), and source object count (input size) — together they answer the question 'is this project ready for review or does it need more work'" is USEFUL.
+CRITICAL FORMATTING RULES:
+
+Each element must be its own section with a blank line before and after it.
+Each sub-field (What it shows, What it means, etc.) must be on its own line with the description below it.
+Between screens, use a horizontal rule (---) and blank line.
+Between tabs, use a horizontal rule (---) and blank line.
+Between elements, use a blank line.
+NEVER collapse multiple elements into one paragraph.
+NEVER skip the "What would be lacking without it" field.
+NEVER list multiple tabs then go back — enter each tab, fully trace it, leave, then next tab.
