@@ -92,6 +92,10 @@ Think of Level 1 as the city infrastructure, Level 2 as what runs inside each ro
    - 4.12 [Observability](#412-observability)
 5. [Maturity Progression](#5-maturity-progression)
 6. [How To Use This Model](#6-how-to-use-this-model)
+7. [Concrete Examples — Two Real Systems](#7-concrete-examples--two-real-systems)
+   - 7.1 [FoodNow — Food Delivery Platform](#71-foodnow--food-delivery-platform)
+   - 7.2 [Analytics Migrator — Ideal Future Architecture](#72-analytics-migrator--ideal-future-architecture)
+   - 7.3 [Side-by-Side Comparison](#73-side-by-side-comparison)
 
 ---
 
@@ -639,6 +643,381 @@ Yes. A simple internal tool with five users will never need a CDN, a load balanc
 > "Do these layers change based on the technology used?"
 
 No. Whether you use Azure, AWS, or GCP — whether your backend is Python, Node, or Java — the topology is the same. The technologies change. The layers do not. An API Gateway on Azure (Azure API Management) and an API Gateway on AWS (AWS API Gateway) are different products serving the same layer in the same position in the topology.
+
+---
+
+## 7. Concrete Examples — Two Real Systems
+
+This section puts the model to work. Two systems are drawn side by side — FoodNow (a consumer-scale food delivery platform) and the Analytics Migrator (an enterprise internal migration tool). The same reference topology is used for both. What makes them different is which layers are present, what technology implements each one, and what is specific to each domain.
+
+---
+
+### 7.1 FoodNow — Food Delivery Platform
+
+**System context:** A consumer-facing food delivery platform serving customers, restaurant partners, and delivery riders simultaneously. Thousands of concurrent users. Real-time order tracking. Payment processing. Peak traffic at lunch and dinner.
+
+**Architect's reasoning:** This is a consumer product with unpredictable traffic spikes, real-time requirements, globally distributed users, and strict financial compliance for payments. Every layer of the topology is justified and actively in use. The scale demands full infrastructure maturity.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  CLIENTS                                                            │
+│  Mobile App (iOS + Android)     → customers placing orders         │
+│  Restaurant Portal (Web)        → staff managing menus and orders  │
+│  Rider App (iOS + Android)      → riders accepting and tracking    │
+│  Admin Dashboard (Web)          → internal ops and reporting       │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  CDN / EDGE — Azure CDN                                            │
+│  What it serves: restaurant photos, food images, Vue/React bundle  │
+│  Cache TTL: images 24hrs, app bundle 1hr                          │
+│  Why: users in PH, SG, MY — all served from nearest edge node     │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  LOAD BALANCER — Azure Application Gateway                         │
+│  Instances: Order Service ×5, Restaurant Service ×3               │
+│             Delivery Service ×4 (scales with active orders)        │
+│  Health check: every 30 seconds per instance                      │
+│  Auto-scale: triggers at 70% CPU — adds instances during lunch     │
+│  SSL termination: HTTPS decrypted here, plain HTTP internally      │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  API GATEWAY — Azure API Management                                │
+│  Auth: Azure AD B2C JWT tokens validated on every request         │
+│  Rate limiting: 100 req/min per user, 1000 req/min per restaurant  │
+│  Routing:                                                          │
+│    /orders/*         → Order Service                               │
+│    /restaurants/*    → Restaurant Service                          │
+│    /delivery/*       → Delivery Service                            │
+│    /users/*          → User Service                                │
+│  Why: 4 backend services — one enforcement point for all rules     │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  APPLICATION SERVERS — Microservices (FastAPI, Python)             │
+│                                                                     │
+│  Order Service      → placement, validation, promo logic           │
+│  Restaurant Service → menus, hours, availability                   │
+│  Delivery Service   → rider assignment, live tracking              │
+│  User Service       → auth, profiles, loyalty points              │
+│  Notification Fn    → Azure Functions, event-triggered, stateless  │
+│  Invoice Fn         → Azure Functions, fires on order completion   │
+│                                                                     │
+│  Why microservices: payment failures must not crash menu browsing  │
+│  Why functions: notifications are burst, event-driven, zero idle   │
+└─────────────────────────────────────────────────────────────────────┘
+         │            │             │             │
+         ▼            ▼             ▼             ▼
+┌──────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐
+│    CACHE     │ │  QUEUE   │ │ STORAGE  │ │   SEARCH     │
+│              │ │          │ │          │ │              │
+│ Azure Cache  │ │  Azure   │ │  Azure   │ │   Azure      │
+│ for Redis    │ │ Service  │ │  Blob    │ │  Cognitive   │
+│              │ │   Bus    │ │ Storage  │ │   Search     │
+│ Restaurant   │ │          │ │          │ │              │
+│ menus: 5min  │ │ Topics:  │ │restaurant│ │ Indexes:     │
+│ User session │ │ order.   │ │ -photos  │ │ restaurants  │
+│ TTL: 30min   │ │ placed   │ │ receipts │ │ menu_items   │
+│ Active rider │ │ payment. │ │ invoices │ │              │
+│ loc: 10sec   │ │ processed│ │ promos   │ │ Typo-tolerant│
+│              │ │ restaurant│ │          │ │ Geo-filtered │
+│              │ │ .unavail │ │ CDN      │ │ Ranked by    │
+│              │ │          │ │ origin   │ │ distance +   │
+│              │ │ Workers: │ │ for all  │ │ rating       │
+│              │ │ Payment  │ │ images   │ │              │
+│              │ │ Notif    │ │          │ │              │
+│              │ │ Invoice  │ │          │ │              │
+└──────────────┘ └──────────┘ └──────────┘ └──────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  DATABASE — Azure Database for PostgreSQL                          │
+│                                                                     │
+│  Primary DB        → all write operations                          │
+│    orders, order_items, payments, users, restaurants               │
+│                                                                     │
+│  Read Replica 1    → order history queries, customer-facing reads  │
+│  Read Replica 2    → ops dashboard, analytics, reporting queries   │
+│                                                                     │
+│  Why two replicas: dashboard queries must never compete with       │
+│  customer-facing reads during lunch peak                           │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  EXTERNAL SERVICES                                                  │
+│                                                                     │
+│  GCash API          → payment processing (PH market)               │
+│  PayMaya API        → payment processing (PH market)               │
+│  Google Maps        → routing, distance, geocoding, live map       │
+│  Firebase FCM       → push notifications to mobile apps            │
+│  Twilio             → SMS fallback when push fails                 │
+│  SendGrid           → email receipts and marketing                 │
+│                                                                     │
+│  All wrapped in Circuit Breaker + Retry + Fallback                 │
+│  GCash down → PayMaya fallback → show "pay on delivery" option     │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  OBSERVABILITY                                                      │
+│                                                                     │
+│  Azure Application Insights → distributed tracing, APM            │
+│  Azure Monitor              → metrics dashboards, custom alerts    │
+│  Log Analytics Workspace    → centralized structured JSON logs     │
+│  PagerDuty                  → on-call escalation                   │
+│                                                                     │
+│  Alert rules:                                                       │
+│    Order Service p95 latency > 2s → page on-call engineer          │
+│    Payment error rate > 2%        → page payments lead             │
+│    GCash circuit breaker open     → Slack + PagerDuty              │
+│                                                                     │
+│  Correlation ID: every order traced from mobile tap                │
+│  all the way through 6 services back to the confirmation           │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Key architectural decisions for FoodNow:**
+
+| Layer | Decision | Why |
+|---|---|---|
+| Deployment | Microservices | Payment failures must not crash order browsing |
+| Functions | Notification + Invoice as serverless | Burst, event-triggered, zero idle cost |
+| Queue | Azure Service Bus Topics | Restaurant unavailable must fan-out to 3+ services simultaneously |
+| Queue | Azure Service Bus Queue | Payment processing must be exactly-once, never double-charged |
+| Search | Dedicated search engine | Menu search needs typo tolerance and geo-ranking — DB LIKE cannot do this |
+| DB | Two read replicas | Dashboard queries must never compete with customer reads at peak |
+| External | Circuit Breaker on all | GCash outage during holiday sale must degrade gracefully, not crash |
+
+---
+
+### 7.2 Analytics Migrator — Ideal Future Architecture
+
+**System context:** An enterprise internal tool used by data engineering teams to migrate stored procedures from legacy databases (SQL Server, Oracle, PostgreSQL) into Microsoft Fabric and dbt models. Used by engineers, data platform leads, and client stakeholders. Multiple concurrent client engagements requiring full isolation.
+
+**Architect's reasoning:** This is an internal tool today but it needs to become a multi-tenant, enterprise-grade platform. It runs long orchestration pipelines (30-60 minutes), makes hundreds of LLM calls per run, deploys artifacts to Microsoft Fabric, and needs to be trusted by client stakeholders with their production data. The architecture must reflect that trust — security, observability, isolation, and reliability are non-negotiable at enterprise scale.
+
+**Important note:** This is the ideal future state — the fully realized version after all restructuring tiers and feature phases are complete. Not the current state.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  CLIENTS                                                            │
+│  Web Browser (Vue.js SPA)  → engineers, data platform leads        │
+│  CLI (Python binary)       → CI/CD pipelines, scheduled jobs       │
+│                               headless execution, scripted runs    │
+│                                                                     │
+│  Why CLI matters: enterprise workflows need headless execution     │
+│  CI/CD cannot click buttons — it needs a programmatic entry point  │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  CDN / EDGE — Azure Static Web Apps (built-in CDN)                 │
+│  What it serves: Vue.js app bundle, CSS, static assets             │
+│  Why: internal tool — no global edge needed                        │
+│  Azure Static Web Apps gives CDN for free with built-in hosting    │
+│  Not a priority — a simple Nginx would also work at this scale     │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  LOAD BALANCER — Azure Application Gateway                         │
+│  Routes to multiple API instances                                  │
+│  SSL termination                                                   │
+│  WAF (Web Application Firewall) enabled                            │
+│  Why: multi-tenant with client data — WAF is non-negotiable        │
+│  Auto-scale: when multiple teams run pipelines concurrently        │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  API GATEWAY — Azure API Management                                │
+│                                                                     │
+│  Auth:   Azure AD / Entra ID SSO — JWT tokens                     │
+│          API Key auth for CLI and CI/CD programmatic access        │
+│  RBAC:   Admin (full), Engineer (run pipelines), Viewer (read)     │
+│  Scoping: every API call scoped to requesting user's projects      │
+│  Rate limiting: prevent runaway automation scripts                 │
+│                                                                     │
+│  Why: current Basic Auth is a shared credential — zero identity    │
+│  Every action must be traceable to a named user for audit trail    │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  APPLICATION SERVERS                                                │
+│                                                                     │
+│  FastAPI Backend (stateless, ×2 instances)                         │
+│    → Project management, validation, scoring, report endpoints     │
+│    → Publishes migration jobs to Service Bus queue                 │
+│    → Never runs pipelines directly — delegates to Worker           │
+│                                                                     │
+│  Migration Worker (dedicated process, ×N instances)                │
+│    → Was: background daemon thread (Tier 1 restructuring)          │
+│    → Now: dedicated worker consuming from Service Bus              │
+│    → Runs: fix loops, improve loops, wave runner, dbt execution    │
+│    → Scales independently from API — add workers during big runs   │
+│                                                                     │
+│  Why separate: a 60-minute pipeline cannot share a process         │
+│  with the API server — they compete for CPU and memory             │
+│  Worker crash must not take down the UI                            │
+└─────────────────────────────────────────────────────────────────────┘
+         │            │             │
+         ▼            ▼             ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────────────────────┐
+│    CACHE     │ │    QUEUE     │ │         STORAGE              │
+│              │ │              │ │                              │
+│ Azure Cache  │ │ Azure        │ │  Azure Blob Storage          │
+│ for Redis    │ │ Service Bus  │ │                              │
+│              │ │              │ │  migration-artifacts/        │
+│ SSE event    │ │ Queue:       │ │   → generated dbt models     │
+│ subscriptions│ │ migration-   │ │   → dbt project zips         │
+│ (replaces    │ │ jobs         │ │                              │
+│ in-memory    │ │              │ │  validation-reports/         │
+│ EventBus)    │ │ Worker picks │ │   → HTML/PDF exports         │
+│              │ │ up job →     │ │   → stakeholder deliverables │
+│ Runtime      │ │ runs pipeline│ │                              │
+│ config       │ │              │ │  project-archives/           │
+│ overrides    │ │ DLQ:         │ │   → import/export packages   │
+│ (replaces    │ │ failed jobs  │ │                              │
+│ in-memory    │ │ captured,    │ │  llm-call-logs/              │
+│ dict)        │ │ not silently │ │   → full prompt + response   │
+│              │ │ dropped      │ │   → cost tracking per run    │
+│ LLM activity │ │              │ │                              │
+│ ring buffer  │ │ Why: pipeline│ │  Why blob: generated dbt     │
+│ TTL-based    │ │ must survive │ │  files must survive deploys  │
+│              │ │ API restarts │ │  and be shareable across     │
+│              │ │              │ │  team members                │
+└──────────────┘ └──────────────┘ └──────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  DATABASE — Azure Database for PostgreSQL                          │
+│  (replaces SQLite — SQLite cannot support multi-user or HA)        │
+│                                                                     │
+│  Primary DB        → project writes, task writes, event writes     │
+│    Tables: projects, tasks, agent_events, llm_calls,               │
+│            source_objects, target_models, validation_runs          │
+│                                                                     │
+│  Read Replica      → validation score queries, dashboard reads     │
+│                      reporting endpoints, export generation        │
+│                                                                     │
+│  Why PostgreSQL: multi-user requires proper connection pooling,    │
+│  concurrent writes, and row-level locking — SQLite is single-writer│
+│                                                                     │
+│  Per-client isolation: each client project scoped by project_id   │
+│  Row-level security enforced — Client A cannot see Client B data   │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  EXTERNAL SERVICES                                                  │
+│                                                                     │
+│  Azure OpenAI           → LLM calls (GPT-4o, GPT-4o-mini)         │
+│    Circuit Breaker:     3 failures → 60s cooldown → probe → resume │
+│    Multi-model routing: simple tasks → GPT-4o-mini (cheap+fast)   │
+│                         complex SQL  → GPT-4o (accurate+thorough) │
+│    Cost cap: $20 per pipeline run, tracked in real time            │
+│                                                                     │
+│  Microsoft Fabric       → target deployment for migrated models    │
+│    dbt-fabric adapter wired into dbt runner                        │
+│    Workspace management, incremental deploy, rollback on failure   │
+│                                                                     │
+│  Source Databases       → client legacy systems                    │
+│    PostgreSQL (current), SQL Server (Phase 3), Oracle (Phase 3)   │
+│    Connection retry: 3 attempts with exponential backoff           │
+│    Credentials: pulled from Azure Key Vault, never in code         │
+│                                                                     │
+│  dbt Core               → SQL transformation execution engine      │
+│    Version pinned: dbt-core==1.9.1 (never floating >=1.7)         │
+│    Runs inside Worker process, not API server                      │
+│                                                                     │
+│  Azure AD / Entra ID    → SSO identity provider                   │
+│    Engineers log in with their org credentials                     │
+│    No separate account management required                         │
+└─────────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  OBSERVABILITY                                                      │
+│                                                                     │
+│  Azure Application Insights → distributed tracing                 │
+│    Correlation ID: every pipeline run traced from API trigger      │
+│    through Worker → LLM calls → dbt execution → validation         │
+│    One run ID connects everything end to end                       │
+│                                                                     │
+│  Azure Monitor + Log Analytics → structured JSON logs             │
+│    Fields: project_id, phase, agent, model_name, iteration        │
+│    Query: "show all logs for project X from last run"             │
+│    Currently: plain text logs — zero queryability in production    │
+│                                                                     │
+│  Prometheus + Grafana → custom metrics                            │
+│    LLM calls per minute, success rate, cost per run               │
+│    Validation score trends per project                             │
+│    dbt run duration by model complexity                            │
+│    Circuit breaker state (open/closed/half-open)                  │
+│                                                                     │
+│  Alerts:                                                           │
+│    LLM error rate > 5%            → Slack + email to engineer     │
+│    Pipeline run cost > $18        → warning before $20 cap        │
+│    Circuit breaker open           → immediate Slack notification  │
+│    Validation score drop > 20%    → flag for human review         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Key architectural decisions for the Analytics Migrator ideal state:**
+
+| Layer | Decision | Why |
+|---|---|---|
+| Client | CLI as first-class client | Enterprise CI/CD cannot click buttons — programmatic entry point is required |
+| API Gateway | Azure AD SSO + API Keys | Every action must trace to a named user — shared Basic Auth has no identity |
+| App Server | Worker as separate process | 60-minute pipelines cannot share a process with the API server |
+| Cache | Redis replaces in-memory dicts | In-memory state dies on restart and cannot be shared across multiple instances |
+| Queue | Azure Service Bus + DLQ | Pipeline jobs must survive API restarts and failed jobs must never silently disappear |
+| Storage | Azure Blob for all artifacts | Generated dbt files on the app server disk get wiped on every deployment |
+| Database | PostgreSQL replaces SQLite | SQLite is single-writer — cannot support concurrent users or horizontal scaling |
+| External | Circuit Breaker on Azure OpenAI | LLM outage during a 50-model pipeline must fail fast, not hang for 100 minutes |
+| External | Multi-model routing | Paying GPT-4o rates for simple column renames wastes 30-50% of LLM budget |
+| External | Key Vault for all credentials | Client database credentials in environment variables is the highest-risk gap |
+| Observability | Correlation IDs across all layers | Without tracing a request across API → Worker → LLM → dbt, debugging is impossible |
+
+---
+
+### 7.3 Side-by-Side Comparison
+
+The same reference topology. Two completely different architectures. Both justified by different context, scale, and domain requirements.
+
+```
+LAYER              FOODNOW                        ANALYTICS MIGRATOR
+────────────────────────────────────────────────────────────────────────
+Client             Mobile apps + Web + Rider app  Web SPA + CLI
+CDN                Azure CDN (restaurant photos)  Azure Static Web Apps
+Load Balancer      App Gateway + auto-scale ×5   App Gateway + WAF
+API Gateway        Azure APIM + B2C JWT          Azure APIM + Entra SSO + API Keys
+App Server         Microservices per domain       FastAPI + dedicated Worker process
+Cache              Redis (menus, sessions, GPS)   Redis (SSE, config, activity buffer)
+Queue              Service Bus (payment + fan-out) Service Bus (migration jobs + DLQ)
+Storage            Blob (photos, receipts)        Blob (dbt artifacts, reports, archives)
+Search Engine      Azure Cognitive Search         Not needed at this scale
+Database           PostgreSQL + 2 read replicas   PostgreSQL + 1 read replica
+External Services  GCash, Maps, Firebase, Twilio  Azure OpenAI, Fabric, dbt, source DBs
+Observability      App Insights + PagerDuty       App Insights + Prometheus + Grafana
+────────────────────────────────────────────────────────────────────────
+Missing layers     None — full maturity           No search engine (not needed)
+Scale              Consumer, thousands concurrent Internal, tens concurrent
+Biggest risk       GCash outage during peak       LLM outage mid-pipeline
+Biggest gap        None — fully built             SQLite in prod, no identity, no tracing
+```
+
+The topology did not change. The questions asked at each layer did not change. The answers — the technology, the scale, the domain specifics, the justifications — are entirely different because the two systems serve entirely different purposes.
+
+That is exactly how the model works.
 
 ---
 
